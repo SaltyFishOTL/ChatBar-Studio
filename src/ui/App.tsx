@@ -180,10 +180,6 @@ export function App() {
             <CircleHelp size={16} />
             使用指南
           </Button>
-          <div className="actions">
-            <a href="https://github.com/SaltyFishOTL/ChatBar-Studio" target="_blank" rel="noopener noreferrer">开源项目</a>
-            <a href="https://github.com/SaltyFishOTL/ChatChatBar" target="_blank" rel="noopener noreferrer">ChatChatBar APP</a>
-          </div>
           {!import.meta.env.DEV && (
             <>
               <Button
@@ -309,6 +305,25 @@ export function App() {
             提示词和图片只发送给你配置的服务。本机保存的 API Key
             自动保存在当前浏览器，无需口令；不上传到网页服务器，也不包含在备份中。
           </p>
+          <h3>相关链接</h3>
+          <div style={{ display: "flex", gap: "10px", marginTop: "10px" }}>
+            <a
+              href="https://github.com/SaltyFishOTL/ChatBar-Studio"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="button button-secondary button-sm"
+            >
+              开源项目 GitHub
+            </a>
+            <a
+              href="https://github.com/SaltyFishOTL/ChatChatBar"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="button button-secondary button-sm"
+            >
+              ChatChatBar APP
+            </a>
+          </div>
         </div>
       </Modal>
     </div>

@@ -60,7 +60,7 @@ export default defineConfig({
       },
     }),
   ],
-  server: { port: 5173 },
+  server: { host: "0.0.0.0", port: 3000, allowedHosts: true },
   build: { target: "es2022" },
   worker: { format: "es" },
 });

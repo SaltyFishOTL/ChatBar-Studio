@@ -54,4 +54,4 @@ createServer(async (req, res) => {
     res.writeHead(500);
     res.end("Unable to read static resource");
   }
-}).listen(Number(process.env.PORT || 8080), "0.0.0.0");
+}).listen(Number(process.env.PORT || 3000), "0.0.0.0");
