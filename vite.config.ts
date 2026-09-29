@@ -8,6 +8,16 @@ export default defineConfig({
     react(),
     {
       name: "studio-build-version",
+      configureServer(server) {
+        server.middlewares.use((req, res, next) => {
+          if (req.url === "/version.json") {
+            res.setHeader("Content-Type", "application/json");
+            res.end(JSON.stringify({ buildId }));
+            return;
+          }
+          next();
+        });
+      },
       generateBundle() {
         this.emitFile({
           type: "asset",
@@ -43,7 +53,7 @@ export default defineConfig({
           "data/styles.json",
           "data/style-metadata.json",
         ],
-        navigateFallbackDenylist: [/^\/data\//],
+        navigateFallbackDenylist: [/^\/data\//, /^\/version\.json$/],
         runtimeCaching: [
           {
             urlPattern: ({ url }) =>

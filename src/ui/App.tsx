@@ -31,6 +31,16 @@ const pages = [
   ["tools", "图像工具", Wrench],
   ["settings", "设置", Settings],
 ] as const;
+function isVersionNewer(remote?: string | null, local?: string | null): boolean {
+  if (!remote || !local || remote === local) return false;
+  const remoteTime = Date.parse(remote);
+  const localTime = Date.parse(local);
+  if (!Number.isNaN(remoteTime) && !Number.isNaN(localTime)) {
+    return remoteTime > localTime;
+  }
+  return false;
+}
+
 export function App() {
   const s = useStudio(),
     [page, setPage] = useState("studio"),
@@ -52,13 +62,18 @@ export function App() {
     onRegisteredSW(_url, value) {
       registration.current = value;
     },
+    onNeedRefresh() {
+      void checkRef.current(false);
+    },
     onRegisterError() {
-      setUpdateError("离线更新组件加载失败，请检查网页服务后重试。");
+      if (!import.meta.env.DEV) {
+        setUpdateError("离线更新组件加载失败，请检查网页服务后重试。");
+      }
     },
   });
   const checkUpdate = useCallback(
     async (manual = false) => {
-      if (import.meta.env.DEV || checkingRef.current) return;
+      if (checkingRef.current) return;
       checkingRef.current = true;
       setChecking(true);
       setUpdateError("");
@@ -68,33 +83,57 @@ export function App() {
       try {
         const response = await fetch("/version.json", {
           cache: "no-store",
+          headers: { "Cache-Control": "no-cache", Pragma: "no-cache" },
           signal: controller.signal,
         });
         if (!response.ok) throw Error("版本信息暂不可用");
+        const contentType = response.headers.get("content-type") || "";
+        if (!contentType.includes("application/json")) {
+          throw Error("版本信息格式无效");
+        }
         const version = await response.json();
         if (typeof version.buildId !== "string")
           throw Error("版本信息格式无效");
         serverResponded = true;
         setServiceOffline(false);
-        setAvailable(version.buildId !== buildId);
-        if ("serviceWorker" in navigator) {
-          const current =
-            registration.current ||
-            (await navigator.serviceWorker.getRegistration());
-          registration.current = current;
-          if (current) {
-            await current.update();
-            if (current.waiting) setNeedRefresh(true);
+
+        const hasNewer = isVersionNewer(version.buildId, buildId);
+        setAvailable(hasNewer);
+
+        if (!hasNewer) {
+          // 当前版本较新或一致，不显示刷新提示
+          setNeedRefresh(false);
+          if ("serviceWorker" in navigator) {
+            const current =
+              registration.current ||
+              (await navigator.serviceWorker.getRegistration());
+            if (current?.waiting) {
+              current.waiting.postMessage({ type: "SKIP_WAITING" });
+            }
+          }
+          if (manual) s.notify("当前已是最新界面");
+        } else {
+          // 远端确有更新版本
+          if ("serviceWorker" in navigator) {
+            const current =
+              registration.current ||
+              (await navigator.serviceWorker.getRegistration());
+            registration.current = current;
+            if (current) {
+              await current.update();
+              if (current.waiting) setNeedRefresh(true);
+            }
           }
         }
-        if (manual && version.buildId === buildId) s.notify("当前已是最新界面");
       } catch {
         setServiceOffline(!serverResponded);
-        setUpdateError(
-          serverResponded
-            ? "网页服务已连接，但离线更新失败。请点击检查更新重试。"
-            : "未能连接网页更新服务，当前可能仍是离线缓存。恢复服务后点击检查更新。",
-        );
+        if (manual) {
+          setUpdateError(
+            serverResponded
+              ? "网页服务已连接，但检查更新失败，请重试。"
+              : "未能连接网页更新服务，当前可能仍是离线缓存。恢复服务后点击检查更新。",
+          );
+        }
       } finally {
         clearTimeout(timer);
         checkingRef.current = false;
@@ -106,7 +145,6 @@ export function App() {
   const checkRef = useRef(checkUpdate);
   checkRef.current = checkUpdate;
   useEffect(() => {
-    if (import.meta.env.DEV) return;
     const check = () => {
       if (document.visibilityState === "visible") void checkRef.current();
     };
@@ -230,7 +268,7 @@ export function App() {
             </Button>
           </div>
         )}
-        {(needRefresh || available) && !serviceOffline && (
+        {available && !serviceOffline && (
           <div className="banner">
             <span>
               {needRefresh
@@ -240,16 +278,25 @@ export function App() {
             <Button
               variant="secondary"
               size="sm"
-              disabled={
-                s.busy || (!needRefresh && "serviceWorker" in navigator)
-              }
-              onClick={() =>
-                needRefresh
-                  ? updateServiceWorker(true).catch(() =>
-                      setUpdateError("更新未完成，请点击检查更新后重试。"),
-                    )
-                  : window.location.reload()
-              }
+              disabled={s.busy}
+              onClick={async () => {
+                setUpdateError("");
+                try {
+                  if (registration.current?.waiting) {
+                    registration.current.waiting.postMessage({
+                      type: "SKIP_WAITING",
+                    });
+                  }
+                  await updateServiceWorker(true);
+                } catch {
+                  // ignore
+                }
+                setNeedRefresh(false);
+                setAvailable(false);
+                setTimeout(() => {
+                  window.location.reload();
+                }, 200);
+              }}
             >
               刷新更新
             </Button>
