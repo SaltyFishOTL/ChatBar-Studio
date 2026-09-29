@@ -1,0 +1,9 @@
+.git
+node_modules
+dist
+reference
+tools
+docs
+*.zip
+.env*
+release

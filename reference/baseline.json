@@ -1,0 +1,476 @@
+{
+  "androidCommit": "148b3a9637eadf577afbb4947158dd6f80e17f4f",
+  "androidStatus": "",
+  "files": [
+    {
+      "path": "app/app/src/main/java/com/example/chatbar/domain/image/ApngDisguiseCodec.kt",
+      "sha256": "654226839e34c285cb47d72a2f5067dded2e6cbe30652cd3444d3d83413aea79"
+    },
+    {
+      "path": "app/app/src/main/java/com/example/chatbar/domain/image/CharacterAvatarImagePolicy.kt",
+      "sha256": "47940bcd76fa2c4577376414e0b99ffc069f26b13dbcaa033e55a7f1ac2d9347"
+    },
+    {
+      "path": "app/app/src/main/java/com/example/chatbar/domain/image/DanbooruTagCatalog.kt",
+      "sha256": "134955dabcd9f8d866e5d4edb3ef38f7065e20e21bb4d01321a8f113a0e69508"
+    },
+    {
+      "path": "app/app/src/main/java/com/example/chatbar/domain/image/ImageCropMath.kt",
+      "sha256": "ce14bba7c2bd5889f71cf47b0a9ab656f81c4685cc091cfb807c7239f211da83"
+    },
+    {
+      "path": "app/app/src/main/java/com/example/chatbar/domain/image/ImageFileEncoder.kt",
+      "sha256": "c6353bec55f09ebeafd92b17935da2e3c23a1d0d9ca9db34461e81263837b093"
+    },
+    {
+      "path": "app/app/src/main/java/com/example/chatbar/domain/image/ImageGenerationConcurrencyGate.kt",
+      "sha256": "5a89f8e4cd827a7998c25ecdad97637c4907bc8f1046b9897aa934ef8c67ed66"
+    },
+    {
+      "path": "app/app/src/main/java/com/example/chatbar/domain/image/ImageMetadataStripper.kt",
+      "sha256": "041afae6d68097723671a076dbe58114fb5c1fca41452cd14e97e9356a844dcf"
+    },
+    {
+      "path": "app/app/src/main/java/com/example/chatbar/domain/image/ImageProcessingService.kt",
+      "sha256": "bd698bfabe33e2a287b067ccb776eb586ff629ccdb329bc0f8c05a5572f39122"
+    },
+    {
+      "path": "app/app/src/main/java/com/example/chatbar/domain/image/NovelAiAccountService.kt",
+      "sha256": "afa1b5ee94fc37f3667195bd5df679fe3c15e73033a2108dbc5dc18d730222ec"
+    },
+    {
+      "path": "app/app/src/main/java/com/example/chatbar/domain/image/NovelAiBatchPolicy.kt",
+      "sha256": "3cdf0e9a1303ebbfc6e95a7e2728c3b7022a660706506c11ce5fcccebb07dd75"
+    },
+    {
+      "path": "app/app/src/main/java/com/example/chatbar/domain/image/NovelAiBundledDictionary.kt",
+      "sha256": "ee55240f899344f539f3aa67a22bb5c387dd73c093ee92c08ba0d6bb68108105"
+    },
+    {
+      "path": "app/app/src/main/java/com/example/chatbar/domain/image/NovelAiCharacterPositionPolicy.kt",
+      "sha256": "336e68d014e6f63f2285257ed5f36058eefad56bbb68a10b361f4ca406d70580"
+    },
+    {
+      "path": "app/app/src/main/java/com/example/chatbar/domain/image/NovelAiCodexCatalog.kt",
+      "sha256": "7c30fd8f42d9c7d5c297b621913b3ca45a47d1d9274b79a09f3c79cc63b899f2"
+    },
+    {
+      "path": "app/app/src/main/java/com/example/chatbar/domain/image/NovelAiDesignConversationModels.kt",
+      "sha256": "f0b492cb683f1aba3080cf56de7be9c89c80649b737d309b27a91833115aa57e"
+    },
+    {
+      "path": "app/app/src/main/java/com/example/chatbar/domain/image/NovelAiFocusedInpaint.kt",
+      "sha256": "3970e474277bf66b8b9782c1f8dedbb81080551418c83bea2bc2a56ef5c5ef21"
+    },
+    {
+      "path": "app/app/src/main/java/com/example/chatbar/domain/image/NovelAiHistoryFolding.kt",
+      "sha256": "3590b24da85bb9c6fb7f987d4f3d46094837bfb5522d9997b3901b8aca4b8627"
+    },
+    {
+      "path": "app/app/src/main/java/com/example/chatbar/domain/image/NovelAiHistoryGalleryExport.kt",
+      "sha256": "92047151d3d5074d9785a82cd6e7ed618e205db0e2ba21d8b858e320b6e84ad9"
+    },
+    {
+      "path": "app/app/src/main/java/com/example/chatbar/domain/image/NovelAiImageGuidance.kt",
+      "sha256": "0c87a8de97279acde9103e883a2ecfe0c459d786508811007b641c76cb84aac5"
+    },
+    {
+      "path": "app/app/src/main/java/com/example/chatbar/domain/image/NovelAiImageModelResolution.kt",
+      "sha256": "433b5d33955cf4e0238f79eea4cb9fa77c6b7bfc51c68262671ee5bca9926fa1"
+    },
+    {
+      "path": "app/app/src/main/java/com/example/chatbar/domain/image/NovelAiImagePostProcessing.kt",
+      "sha256": "67ccca4d501aa1a88b6a3d31449faeeef8d8751409680443f2743c19846e7b0a"
+    },
+    {
+      "path": "app/app/src/main/java/com/example/chatbar/domain/image/NovelAiImageRegeneration.kt",
+      "sha256": "43517d3482c24adf73e2a37434c7ed42949fa3838fea1ca04827b33bd750a716"
+    },
+    {
+      "path": "app/app/src/main/java/com/example/chatbar/domain/image/NovelAiImageService.kt",
+      "sha256": "2322de61d91077c408da3da9827cc6654fb856bf4e58db4b50b1943fa84a196b"
+    },
+    {
+      "path": "app/app/src/main/java/com/example/chatbar/domain/image/NovelAiImageSizePolicy.kt",
+      "sha256": "3094f7f995d2bb3df6cd16427fddbf38ac915f63c86bd634b864f35d68c2a3eb"
+    },
+    {
+      "path": "app/app/src/main/java/com/example/chatbar/domain/image/NovelAiImageStorage.kt",
+      "sha256": "b946ddc1e0150b2dfd2a29e5b973deaaf6bb904c99ace5db4839addf6f85e50b"
+    },
+    {
+      "path": "app/app/src/main/java/com/example/chatbar/domain/image/NovelAiInpaintMaskEncoder.kt",
+      "sha256": "680bc14fb48a41fee8405bf2956aeb7985e389a69ebcad22a449d79f6e225f6b"
+    },
+    {
+      "path": "app/app/src/main/java/com/example/chatbar/domain/image/NovelAiInpaintResultComposer.kt",
+      "sha256": "82f4efb00913fd72bdf496bfa687adf12ab5ea572e68b2631104fa1a947fdfa5"
+    },
+    {
+      "path": "app/app/src/main/java/com/example/chatbar/domain/image/NovelAiLanczos3Resampler.kt",
+      "sha256": "4029f73b901eeafd016ec4de122187946e91c7fafa9225400e73e3e3db23f725"
+    },
+    {
+      "path": "app/app/src/main/java/com/example/chatbar/domain/image/NovelAiPngMetadataReader.kt",
+      "sha256": "e2f46014b2f98abaa310de1f34df5a47d0123f8a6f68c4c3fda43fc7894f88d8"
+    },
+    {
+      "path": "app/app/src/main/java/com/example/chatbar/domain/image/NovelAiPostProcessFiles.kt",
+      "sha256": "b393ad27980da05ea49efd0caab879c64b424ad39980f48c18700c1579ba4e8e"
+    },
+    {
+      "path": "app/app/src/main/java/com/example/chatbar/domain/image/NovelAiPromptDesigner.kt",
+      "sha256": "c283767d200f99992e355bdac104c67eb19475533bb83a1c3022f044378a1487"
+    },
+    {
+      "path": "app/app/src/main/java/com/example/chatbar/domain/image/NovelAiPromptPostProcessor.kt",
+      "sha256": "ce384181a98688bac26a28e6d9ee73ffe423740b267651891512a53a33f50b3d"
+    },
+    {
+      "path": "app/app/src/main/java/com/example/chatbar/domain/image/NovelAiPromptTokenCounter.kt",
+      "sha256": "33f4f933db3f829fa480ce9ecff34a28bf2842b2ce63a355303641ad679ba99a"
+    },
+    {
+      "path": "app/app/src/main/java/com/example/chatbar/domain/image/NovelAiPromptTranslation.kt",
+      "sha256": "28a8b1adf9b656e2e073405a8f0295e834f7633f6fe0b7fb6182d1e730baff5a"
+    },
+    {
+      "path": "app/app/src/main/java/com/example/chatbar/domain/image/NovelAiPromptWordDictionary.kt",
+      "sha256": "7f02f1d01e63654d629105713d92e6cc589f18fcd8299f3edfadb6fba9270a54"
+    },
+    {
+      "path": "app/app/src/main/java/com/example/chatbar/domain/image/NovelAiStreamFrameDecoder.kt",
+      "sha256": "e877856acca3f584e238cd6e1a6c962110c28731f01e8e6c00e76d6c55beff73"
+    },
+    {
+      "path": "app/app/src/main/java/com/example/chatbar/domain/image/NovelAiStudioAssetStorage.kt",
+      "sha256": "450988ada629d734b0046583068d019699aabe1d6d1292b56e65352b4bf9dc3d"
+    },
+    {
+      "path": "app/app/src/main/java/com/example/chatbar/domain/image/NovelAiStudioImageImport.kt",
+      "sha256": "443ccc92d980c219b55c6766a3a8409bcda80dc69f89bdde450062b7fdc5666f"
+    },
+    {
+      "path": "app/app/src/main/java/com/example/chatbar/domain/image/NovelAiStudioModels.kt",
+      "sha256": "6b67fb88bbb8f31459f40ca0c3599603eea464f27acd1c7073c783aa1f795183"
+    },
+    {
+      "path": "app/app/src/main/java/com/example/chatbar/domain/image/NovelAiStudioPromptClipboard.kt",
+      "sha256": "5c5017fd09cc69b82f35be090e0647814e4b3de51b75314367fac22af2db001c"
+    },
+    {
+      "path": "app/app/src/main/java/com/example/chatbar/domain/image/NovelAiStudioSizePolicy.kt",
+      "sha256": "11b36080ab8f85f9f2dc3d5b60199ecc9724569891e458c3c205fc52886d5b98"
+    },
+    {
+      "path": "app/app/src/main/java/com/example/chatbar/domain/image/NovelAiStyleCatalog.kt",
+      "sha256": "83a45dbd5ccc178eead1c7a0939e5b05336347d22275f9c8c05e576cb74ce158"
+    },
+    {
+      "path": "app/app/src/main/java/com/example/chatbar/domain/image/NovelAiTagCompletion.kt",
+      "sha256": "2dfe9624818e5a93d034ae4edea03005284334824342d4962d3dfb2783aab358"
+    },
+    {
+      "path": "app/app/src/main/java/com/example/chatbar/domain/image/NovelAiTagResearchService.kt",
+      "sha256": "8bed6578e9c2f156e5dce0d1934c5d0d6480f5ae3a517ae2478bd53e6ddec5a3"
+    },
+    {
+      "path": "app/app/src/main/java/com/example/chatbar/domain/image/NovelAiTagSuggestionService.kt",
+      "sha256": "22de561716893ac0f0e9d23e6f865fd346323edfbe05451a1f358877f756e220"
+    },
+    {
+      "path": "app/app/src/main/java/com/example/chatbar/domain/image/NovelAiUpscaleService.kt",
+      "sha256": "2d76790457ed3414f60aae499d63d0b982d38d3f736096f0211322a1ee1cb979"
+    },
+    {
+      "path": "app/app/src/main/java/com/example/chatbar/domain/image/NovelAiV5TextPromptPolicy.kt",
+      "sha256": "e515db68861bf48ae281da41ddc6fb31d4e04e8454108b7484df00904de94de4"
+    },
+    {
+      "path": "app/app/src/main/java/com/example/chatbar/domain/image/NovelAiVibeEncodingService.kt",
+      "sha256": "ab71908ffaca3b0257976fa730885edbd0f44f61fe83961246b3ad46a258823c"
+    },
+    {
+      "path": "app/app/src/main/java/com/example/chatbar/domain/image/RankedTagIndex.kt",
+      "sha256": "c6e2a47cca2954304ef19634888bfc008b99d174d76ed0a7d512e7c19fce4507"
+    },
+    {
+      "path": "app/app/src/main/java/com/example/chatbar/domain/image/TagIndexPreparation.kt",
+      "sha256": "ef7be8972ece4fca4e7fff3bb1be0e48e6f478e2f7498f2e0f8a2756d5e06bb9"
+    },
+    {
+      "path": "app/app/src/main/java/com/example/chatbar/ui/imageprompt/ImagePromptToolScreen.kt",
+      "sha256": "6ea0967696892fbcb0d1bfe5b611ad19e18a9c46dba3d9c7b32a609030c5ff26"
+    },
+    {
+      "path": "app/app/src/main/java/com/example/chatbar/ui/imageprompt/ImagePromptToolViewModel.kt",
+      "sha256": "db5947b93d81f706945acf1d7db4c2ee7249657b35e06c1ea60f04a60cf53cbd"
+    },
+    {
+      "path": "app/app/src/main/java/com/example/chatbar/ui/imageprompt/NovelAiCanvasHistory.kt",
+      "sha256": "232bcae79c5fccdeb04c201500d0d7512e4241697215379db007fab792e739d9"
+    },
+    {
+      "path": "app/app/src/main/java/com/example/chatbar/ui/imageprompt/NovelAiCharacterPositionEditor.kt",
+      "sha256": "1e0ba8cc951f2ef923f60377758dc124e61e7e888a350b4f745038d72ecb03b2"
+    },
+    {
+      "path": "app/app/src/main/java/com/example/chatbar/ui/imageprompt/NovelAiDesignScreen.kt",
+      "sha256": "65c578cd423d43844946adf811869e94aac8109b8168bdc1cd69f5f178c881b9"
+    },
+    {
+      "path": "app/app/src/main/java/com/example/chatbar/ui/imageprompt/NovelAiDesignViewModel.kt",
+      "sha256": "f759d8537c66a1cdcd7d8bcf96ea88b0822755b37c8a12c044c10a80a8d25f12"
+    },
+    {
+      "path": "app/app/src/main/java/com/example/chatbar/ui/imageprompt/NovelAiHistoryFilter.kt",
+      "sha256": "99139a98324536ce4df4b42c17f50f96ada1c8d439b34c259701a647ee62e4ce"
+    },
+    {
+      "path": "app/app/src/main/java/com/example/chatbar/ui/imageprompt/NovelAiHistoryScreen.kt",
+      "sha256": "d62c84d8be60ebb1973469193205fca4968bd5ce1d8987b700987bfcc1d2a7f9"
+    },
+    {
+      "path": "app/app/src/main/java/com/example/chatbar/ui/imageprompt/NovelAiHistoryViewModel.kt",
+      "sha256": "57b91446300dfde675c239d37f48d86213dee31513008ac3302b17d744e644b6"
+    },
+    {
+      "path": "app/app/src/main/java/com/example/chatbar/ui/imageprompt/NovelAiImageAction.kt",
+      "sha256": "213a4d213766fb085a2c75d8d310e8ab2206414a8970b2e1ef14a74b7d57ef85"
+    },
+    {
+      "path": "app/app/src/main/java/com/example/chatbar/ui/imageprompt/NovelAiImageGuidanceEditor.kt",
+      "sha256": "0f9f8cb4f09e1d5971a1d294a6de4d55412e61df99fbed7b759ed83e5cfbc22e"
+    },
+    {
+      "path": "app/app/src/main/java/com/example/chatbar/ui/imageprompt/NovelAiPostProcessScreen.kt",
+      "sha256": "c8ec4d1090325c961371f1e11a254a07a395d37c49e49e64e4d6ec919178bc45"
+    },
+    {
+      "path": "app/app/src/main/java/com/example/chatbar/ui/imageprompt/NovelAiStudioSizeEditor.kt",
+      "sha256": "dfd7d1e0df97d29c32e7eeaf3de0d55e3a9768ed008dbf9af0a188974eebeeee"
+    },
+    {
+      "path": "app/app/src/main/java/com/example/chatbar/ui/imageprompt/StudioImageTaskCompletion.kt",
+      "sha256": "bd1dd6e5dd36a339ca63ee05a9899051098e4a9952c73e45364434f359b24d2b"
+    },
+    {
+      "path": "app/app/src/main/java/com/example/chatbar/domain/prompt/PromptTemplates.kt",
+      "sha256": "f26bc8210e2c3d37b3051ae771f64563487497ea80720a64fd7c7000446476d8"
+    },
+    {
+      "path": "app/app/src/main/java/com/example/chatbar/data/local/entity/ModelConfig.kt",
+      "sha256": "0ad0812ad77c288986ec64ed117b0bd9531ffc858a6452962a64ab142f8fedf8"
+    },
+    {
+      "path": "app/app/src/main/java/com/example/chatbar/data/repository/NovelAiDesignConversationRepository.kt",
+      "sha256": "50da78e986598efb8bdd0ec4d3a043b15103e1957f478b9fbf1a00925570de1c"
+    },
+    {
+      "path": "app/app/src/main/java/com/example/chatbar/data/repository/NovelAiStudioRepository.kt",
+      "sha256": "16cac88d427cd8822a0ce7d8550602473350620217bbe17496af399b52cbeeb8"
+    }
+  ],
+  "resources": [
+    {
+      "path": "codex.json",
+      "sha256": "80ae04bff76f500d240075c0666b2399e83fffaf549ec2dc96034b2f2b6d235a",
+      "bytes": 347463
+    },
+    {
+      "path": "dictionary-overrides.json",
+      "sha256": "7ea07be7f56307d8561d2b91c0b2a84ca9a9f0eb23147ab2f4b29917a459ae78",
+      "bytes": 4736
+    },
+    {
+      "path": "prompts.json",
+      "sha256": "56b136da79aa6cdbc4388424589e201f14f72b55e12429719424de515eb30366",
+      "bytes": 29550
+    },
+    {
+      "path": "styles.json",
+      "sha256": "6ac854f9e418995a5aee64699c5573dd6163a98189f511ffe4705a984b8ae7cc",
+      "bytes": 16969
+    },
+    {
+      "path": "licenses/danbooru_tag_catalog.txt",
+      "sha256": "2617c1c85042f06f4a48eedab9401fa35638ffe5e2b2ceeeaa8004b42b3cfcb2",
+      "bytes": 469
+    },
+    {
+      "path": "licenses/prompt_translation_dictionary_LICENSE.txt",
+      "sha256": "8cda17ab679670e8102ab05b8d0daf8f8d48b0bc9efc84e8f84d3fcc9d4cdd80",
+      "bytes": 1298
+    },
+    {
+      "path": "prompt_dictionary/ecdict.sqlite.binz",
+      "sha256": "3388e2e5b083c870f4dae9f2f03b4464289e0111b331ae39b8d0b4b68ffe2a90",
+      "bytes": 7763165
+    },
+    {
+      "path": "prompt_dictionary/metadata.json",
+      "sha256": "cb5b2d8ec68c75ea26601c5583c310a286e4f140d3043b10ef3bfc8f81e52e64",
+      "bytes": 386
+    },
+    {
+      "path": "style-previews/.gitkeep",
+      "sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+      "bytes": 1
+    },
+    {
+      "path": "style-previews/GBC\u98ce.webp",
+      "sha256": "cf72ea964fb83402e9a8636464d2d8abeca935d7be205835f8ff407ee41b54b2",
+      "bytes": 18840
+    },
+    {
+      "path": "style-previews/MYGO\u52a8\u753b.webp",
+      "sha256": "e9b8e1c1d2eb07ad72cfe74eda73ddb0afa49efb391846b2d3e7ec1a79128b62",
+      "bytes": 21412
+    },
+    {
+      "path": "style-previews/\u53ef\u7231\u624b\u7ed8.webp",
+      "sha256": "cbdb3e6f5464124d8f144d3831c0f458611ac789fb08d3e204009ccf1b655ded",
+      "bytes": 39212
+    },
+    {
+      "path": "style-previews/\u552f\u7f8e\u539a\u6d82.webp",
+      "sha256": "d4c32a050497d6bd641c53081909da053ffaefc8386bc7077757701406adbe93",
+      "bytes": 36818
+    },
+    {
+      "path": "style-previews/\u552f\u7f8e\u624b\u7ed8.webp",
+      "sha256": "ca7f78b47a3693a464bad23717dc85b04c7fc6c3f8f871d0eef59eecab742aab",
+      "bytes": 44032
+    },
+    {
+      "path": "style-previews/\u5e73\u6d82\u6f2b\u753b.webp",
+      "sha256": "79b002a3780a267724a878d88c27ca2e1ee621d26cf01f429a304b65cfee9e41",
+      "bytes": 28510
+    },
+    {
+      "path": "style-previews/\u65e5\u7cfb\u67d4\u5149.webp",
+      "sha256": "4a9abb3afdc9ae99c9919a0279225ea013be4eef23f0cbccc8a5d0635ef642c8",
+      "bytes": 33758
+    },
+    {
+      "path": "style-previews/\u6697\u8d28\u7ebf\u7a3f.webp",
+      "sha256": "f960e5a377550530a55c75ec6f697f28cb27bdd19f97c86ad6d2695bfb744b81",
+      "bytes": 68684
+    },
+    {
+      "path": "style-previews/\u67d4\u51493D.webp",
+      "sha256": "8aa640e4c06f6b58800ceabb80ca156580d5052123606d7adb61e603466cb90a",
+      "bytes": 35862
+    },
+    {
+      "path": "style-previews/\u6cb9\u5149\u53ef\u7231.webp",
+      "sha256": "dcf4e76de0d13d91d3e318b79a7a6659afe6bb46bfdea19c94f107986b3554f8",
+      "bytes": 26498
+    },
+    {
+      "path": "style-previews/\u6e29\u6696\u6d82\u62b9.webp",
+      "sha256": "05df1d097aa7c35900f3cae79cb060d6f40b9439126aaae27236936c5ad39ae7",
+      "bytes": 36782
+    },
+    {
+      "path": "style-previews/\u76d0\u7cfb\u5e73\u6d82.webp",
+      "sha256": "2d6cc470286756fc8ee12371c4d08a060b8f5644674f56a4075737c7fc07432b",
+      "bytes": 28020
+    },
+    {
+      "path": "style-previews/\u786c\u7b14\u5237\u624b\u7ed8.webp",
+      "sha256": "bc04aabce2926206af0b62208d03874f481313b8d9c264f6cbeb710ce0a4d357",
+      "bytes": 74408
+    },
+    {
+      "path": "style-previews/\u7b14\u89e6\u5706\u8138.webp",
+      "sha256": "22aebab9d1d5a08d2765e14ee780c145d3c61014a0f47626cebdf356e14ed2d4",
+      "bytes": 34144
+    },
+    {
+      "path": "style-previews/\u7cbe\u7ec6\u7eb9\u7406.webp",
+      "sha256": "74370ed72aac5b99591e5b5d667217c0a4767a2cec7c755cffde36a5abdb9a8d",
+      "bytes": 30076
+    },
+    {
+      "path": "style-previews/\u7cbe\u7ec6\u83b9\u6da6.webp",
+      "sha256": "a994641e2d65de864dff47b3a24f59fbb5220e3c304209e739e9a509e29b4d75",
+      "bytes": 22188
+    },
+    {
+      "path": "style-previews/\u7cbe\u7f8e\u624b\u7ed8.webp",
+      "sha256": "de835c81dd9a87485f7183843de949b76fcfac36c6e5e67ea64fff20c20b4a1b",
+      "bytes": 17638
+    },
+    {
+      "path": "style-previews/\u7cbe\u81f4\u50cf\u7d20.webp",
+      "sha256": "a64bd0971a77e4a691ff1c0f4eedade96d1c7432de6273f3f08ad335951dac01",
+      "bytes": 26602
+    },
+    {
+      "path": "style-previews/\u7ec6\u6da6\u50cf\u7d20.webp",
+      "sha256": "2f2dac79dbb710e1a8cda1649d1b3fa5176df7a460cf1030654b9a5db6775598",
+      "bytes": 20762
+    },
+    {
+      "path": "style-previews/\u7ec6\u817b\u6d45\u6d82.webp",
+      "sha256": "e070a2ef38ac24d191ba1b2168e6513f97aba0c8883accc2ee8c7d76cca46f49",
+      "bytes": 29008
+    },
+    {
+      "path": "style-previews/\u7ec6\u817b\u7b14\u89e6.webp",
+      "sha256": "2e26fcaf8fbd56c9502ca9dc75d45978082f834d52247bf552b8868d9731926b",
+      "bytes": 29400
+    },
+    {
+      "path": "style-previews/\u83b9\u6da6\u5149\u5f71.webp",
+      "sha256": "fae6c9beaff4bf69f3337ec10270e6a0453897a6cb1872ec103613eac7c1f631",
+      "bytes": 28948
+    },
+    {
+      "path": "style-previews/\u8d28\u611f\u624b\u7ed8.webp",
+      "sha256": "59e3fbc7c505367d4f2dacc7c4cc781d8a7a17808878f29efaeb16adaa0a38ef",
+      "bytes": 24642
+    },
+    {
+      "path": "style-previews/\u900f\u5149\u539a\u6d82.webp",
+      "sha256": "6d52eb55454f0bec04efcecf1550ae371f99ef939792163a80047e731163ec63",
+      "bytes": 32618
+    },
+    {
+      "path": "style-previews/\u91cd\u7ebf\u6cb9\u6da6.webp",
+      "sha256": "5291975943f1dac3307aa91a3a511117ceb57627f0fa30d870b8dea05906e670",
+      "bytes": 37322
+    },
+    {
+      "path": "tag_completion/danbooru.json",
+      "sha256": "c15e974b43d18a4860af3f6c86cf6f96dbe374cf9c6c0dd26a6e286e3d7cfe25",
+      "bytes": 181
+    },
+    {
+      "path": "tag_completion/danbooru.sqlite.binz",
+      "sha256": "28f600c62023b32a7aa2bd9195a4c9d2f0551736c277a2db19a65b4479f0c955",
+      "bytes": 20856727
+    },
+    {
+      "path": "tag_completion/dictionary.json",
+      "sha256": "00bf7d43e8d585aea84b8190f9fa7556d2ee33f6a1ac3c740a5121c4786cd3a4",
+      "bytes": 205
+    },
+    {
+      "path": "tag_completion/dictionary.sqlite.binz",
+      "sha256": "1ef38c8fc640b62f1e1b6263c80cd01ce937eb755748f7925ce5f017218ba215",
+      "bytes": 23918592
+    },
+    {
+      "path": "tokenizers/nai_qwen35_v2.binz",
+      "sha256": "13faa3bd859af6b053728ef79a8f723f6fbc7b5a7956b68fb8f245db9bd37902",
+      "bytes": 1731642
+    },
+    {
+      "path": "tokenizers/nai_t5_v2.binz",
+      "sha256": "2d3b41f16434fca97b55757b6a94f2599f5ddb8bad217cfc7d2119e2d50134dc",
+      "bytes": 702439
+    }
+  ]
+}

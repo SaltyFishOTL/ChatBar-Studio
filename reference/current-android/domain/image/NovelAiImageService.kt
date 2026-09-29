@@ -1,0 +1,448 @@
+package com.example.chatbar.domain.image
+
+import com.example.chatbar.domain.ProxyAwareClient
+import java.io.IOException
+import java.net.ConnectException
+import java.net.SocketTimeoutException
+import java.net.UnknownHostException
+import java.util.concurrent.atomic.AtomicReference
+import java.util.concurrent.TimeUnit
+import javax.net.ssl.SSLException
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.channels.trySendBlocking
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
+import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.add
+import kotlinx.serialization.json.buildJsonArray
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
+import okhttp3.Call
+import okhttp3.Callback
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
+import okhttp3.Response
+import org.msgpack.core.MessagePack
+import org.msgpack.value.Value
+
+sealed class NovelAiImageEvent {
+    data class Intermediate(val image: ByteArray, val step: Int, val progress: Float) : NovelAiImageEvent()
+    data class Final(val image: ByteArray) : NovelAiImageEvent()
+    data class Error(val message: String) : NovelAiImageEvent()
+}
+
+class NovelAiImageService(
+    private val client: OkHttpClient = ProxyAwareClient.builder()
+        .connectTimeout(CONNECT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+        .readTimeout(READ_TIMEOUT_MINUTES, TimeUnit.MINUTES)
+        .writeTimeout(WRITE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+        .build()
+) {
+    fun generate(
+        token: String,
+        prompt: NovelAiPromptPlan,
+        seed: Int,
+        imageSize: NovelAiImageSize = prompt.sizePreset.imageSize,
+        batchSize: Int = 1
+    ): Flow<NovelAiImageEvent> = generate(
+        token = token,
+        prompt = prompt,
+        imageSize = imageSize,
+        settings = NovelAiGenerationSettings.legacy(seed, batchSize)
+    )
+
+    fun generate(
+        token: String,
+        prompt: NovelAiPromptPlan,
+        imageSize: NovelAiImageSize,
+        settings: NovelAiGenerationSettings,
+        imageGuidance: NovelAiPreparedImageGuidance = NovelAiPreparedImageGuidance.NONE,
+        retryRateLimitsUntilCancelled: Boolean = false,
+        onRateLimitRetry: (Int, Long) -> Unit = { _, _ -> },
+        onRequestStatus: (String) -> Unit = {},
+        readTimeoutSeconds: Long = TimeUnit.MINUTES.toSeconds(READ_TIMEOUT_MINUTES),
+        maxRateLimitRetries: Int = MAX_GENERATION_ATTEMPTS - 1,
+        enhance: NovelAiEnhanceRequestOptions? = null
+    ): Flow<NovelAiImageEvent> = callbackFlow {
+        require(readTimeoutSeconds > 0)
+        require(maxRateLimitRetries >= 0)
+        val requestClient = client.newBuilder()
+            .readTimeout(readTimeoutSeconds, TimeUnit.SECONDS)
+            .apply { if (enhance != null) retryOnConnectionFailure(false) }
+            .build()
+        val requestBody = buildRequestBody(prompt, imageSize, settings, imageGuidance, enhance).toRequestBody(JSON_MEDIA_TYPE)
+        val activeCall = AtomicReference<Call?>()
+
+        fun enqueueAttempt(attempt: Int) {
+            if (!this@callbackFlow.isActive) return
+            onRequestStatus("第 $attempt 次请求 · 正在连接")
+            val correlationId = correlationId()
+            val request = Request.Builder()
+                .url(ENDPOINT)
+                .header("Authorization", "Bearer ${token.trim()}")
+                .header("Content-Type", "application/json")
+                .header("Accept", "application/octet-stream")
+                .header("x-correlation-id", correlationId)
+                .post(requestBody)
+                .build()
+            val call = requestClient.newCall(request)
+            activeCall.set(call)
+            call.enqueue(object : Callback {
+                override fun onFailure(call: Call, e: IOException) {
+                    val reason = when (e) {
+                        is SocketTimeoutException -> "连接/读取超时"
+                        is ConnectException -> "无法连接到服务器"
+                        is UnknownHostException -> "DNS 解析失败: ${e.message}"
+                        is SSLException -> "SSL 握手失败: ${e.message}"
+                        is java.io.EOFException -> "服务器连接意外断开"
+                        else -> e.javaClass.simpleName + if (e.message != null) ": ${e.message}" else ""
+                    }
+                    trySend(NovelAiImageEvent.Error("NovelAI 生图请求失败 ($reason)"))
+                    close()
+                }
+
+                override fun onResponse(call: Call, response: Response) {
+                    try {
+                        response.use {
+                            if (!this@callbackFlow.isActive) return
+                            if (!response.isSuccessful) {
+                                if (response.code == 429 && (retryRateLimitsUntilCancelled || attempt <= maxRateLimitRetries)) {
+                                    val retryDelay = retryDelayMillis(attempt.coerceAtMost(30), response.header("Retry-After"))
+                                        .coerceAtLeast(if (retryRateLimitsUntilCancelled) 1_000L else 0L)
+                                    // Abandon this response before retrying; never drain a stalled 429 body.
+                                    call.cancel()
+                                    response.close()
+                                    activeCall.compareAndSet(call, null)
+                                    launch {
+                                        onRateLimitRetry(attempt, retryDelay)
+                                        delay(retryDelay)
+                                        enqueueAttempt(if (attempt == Int.MAX_VALUE) attempt else attempt + 1)
+                                    }
+                                    return
+                                }
+                                val body = response.body?.string().orEmpty().take(1000)
+                                val reason = when (response.code) {
+                                    400 -> "请求参数有误"
+                                    401 -> "认证失败，请检查 NovelAI Token 是否有效"
+                                    402 -> "账户余额不足"
+                                    403 -> "无权访问，Token 权限不足"
+                                    429 -> "请求频率过高，已尝试 $attempt 次仍失败"
+                                    500 -> "NovelAI 服务器内部错误"
+                                    502 -> "NovelAI 网关错误"
+                                    503 -> "NovelAI 服务暂不可用"
+                                    else -> "未知服务端错误"
+                                }
+                                trySend(NovelAiImageEvent.Error("NovelAI 生图失败 ($reason, HTTP ${response.code})${if (body.isNotEmpty()) ": $body" else ""}"))
+                                close()
+                                return
+                            }
+                            onRequestStatus("第 $attempt 次请求 · 已接通，等待图片")
+                            val stream = response.body?.byteStream()
+                            if (stream == null) {
+                                trySend(NovelAiImageEvent.Error("NovelAI 生图响应为空：服务器未返回图片数据"))
+                                close()
+                                return
+                            }
+                            try {
+                                val decoder = NovelAiStreamFrameDecoder()
+                                val buffer = ByteArray(16 * 1024)
+                                var finalCount = 0
+                                while (!call.isCanceled()) {
+                                    val count = stream.read(buffer)
+                                    if (count < 0) break
+                                    decoder.feed(buffer.copyOf(count)).forEach { frame ->
+                                        decodeFrame(frame, settings.steps)?.let { event ->
+                                            when (event) {
+                                                is NovelAiImageEvent.Intermediate -> trySend(event)
+                                                is NovelAiImageEvent.Final -> {
+                                                    finalCount += 1
+                                                    trySendBlocking(event)
+                                                }
+                                                is NovelAiImageEvent.Error -> {
+                                                    trySendBlocking(NovelAiImageEvent.Error("${event.message} [request: $correlationId]"))
+                                                    call.cancel()
+                                                    close()
+                                                    return
+                                                }
+                                            }
+                                        }
+                                    }
+                                    // The complete batch, not transport EOF, is the success boundary.
+                                    // Validate every frame already received before closing transport.
+                                    if (finalCount >= settings.count) {
+                                        if (finalCount > settings.count) {
+                                            trySendBlocking(NovelAiImageEvent.Error(
+                                                "批量返回数量异常：请求 ${settings.count}，收到 $finalCount"
+                                            ))
+                                        }
+                                        call.cancel()
+                                        close()
+                                        return
+                                    }
+                                }
+                            } catch (error: Throwable) {
+                                if (!call.isCanceled()) {
+                                    val detail = buildString {
+                                        append(if (error is IOException) "NovelAI 数据流连接失败" else "NovelAI 流解析失败")
+                                        append(" (${error.javaClass.simpleName}")
+                                        if (error.message != null) append(": ${error.message}")
+                                        append(")")
+                                    }
+                                    trySend(NovelAiImageEvent.Error(detail))
+                                }
+                            } finally {
+                                close()
+                            }
+                        }
+                    } catch (error: Exception) {
+                        if (this@callbackFlow.isActive) {
+                            trySend(NovelAiImageEvent.Error(
+                                "NovelAI 响应处理失败 (${error.javaClass.simpleName}: ${error.message}) [request: $correlationId]"
+                            ))
+                            close()
+                        }
+                    }
+                }
+            })
+        }
+
+        enqueueAttempt(attempt = 1)
+        awaitClose { activeCall.get()?.cancel() }
+    }.flowOn(Dispatchers.IO)
+
+    fun buildRequestBody(
+        prompt: NovelAiPromptPlan,
+        seed: Int = randomSeed(),
+        imageSize: NovelAiImageSize = prompt.sizePreset.imageSize,
+        batchSize: Int = 1
+    ): String = buildRequestBody(
+        prompt = prompt,
+        imageSize = imageSize,
+        settings = NovelAiGenerationSettings.legacy(seed, batchSize)
+    )
+
+    fun buildRequestBody(
+        prompt: NovelAiPromptPlan,
+        imageSize: NovelAiImageSize,
+        settings: NovelAiGenerationSettings,
+        imageGuidance: NovelAiPreparedImageGuidance = NovelAiPreparedImageGuidance.NONE,
+        enhance: NovelAiEnhanceRequestOptions? = null
+    ): String {
+        require(settings.count in 1..NOVEL_AI_MAX_BATCH_SIZE) {
+            "NovelAI 批量生图数量必须在 1..$NOVEL_AI_MAX_BATCH_SIZE 之间"
+        }
+        require(imageGuidance.preciseReferenceBase64 == null || imageGuidance.vibes.isEmpty()) {
+            "精确参考与氛围参考不能同时启用"
+        }
+        require(
+            settings.model == NovelAiImageModel.V4_5_FULL ||
+                imageGuidance.preciseReferenceBase64 == null && imageGuidance.vibes.isEmpty()
+        ) { "V5 Full 暂不支持精确参考或氛围参考" }
+        settings.validationError(prompt.characterCaptions.size)?.let { error(it) }
+        val effectivePrompt = if (enhance != null) prompt else
+            NovelAiV5TextPromptPolicy.apply(NovelAiPromptDelimiterPolicy.normalizeForRequest(prompt), settings.model)
+        val negative = if (enhance != null) prompt.negativePrompt else effectivePrompt.effectiveNegativePrompt.trim()
+        val useCoordinates = settings.useCharacterPositions && effectivePrompt.characterCaptions.isNotEmpty()
+        fun requestCenter(caption: NovelAiCharacterCaption) = if (useCoordinates) {
+            NovelAiCharacterPositionPolicy.normalize(caption.center, settings.model)
+        } else caption.center
+        val characterCaptions = buildJsonArray {
+            effectivePrompt.characterCaptions.forEach { caption ->
+                add(buildJsonObject {
+                    put("char_caption", caption.prompt)
+                    put("centers", centerArray(requestCenter(caption)))
+                })
+            }
+        }
+        val v4Prompt = buildJsonObject {
+            put("caption", buildJsonObject {
+                put("base_caption", effectivePrompt.baseCaption)
+                put("char_captions", characterCaptions)
+            })
+            put("use_coords", useCoordinates)
+            put("use_order", true)
+        }
+        val v4NegativePrompt = buildJsonObject {
+            put("caption", buildJsonObject {
+                put("base_caption", negative)
+                put("char_captions", buildJsonArray {
+                    effectivePrompt.characterCaptions.forEach { caption ->
+                        add(buildJsonObject {
+                            put("char_caption", caption.negativePrompt)
+                            put("centers", centerArray(requestCenter(caption)))
+                        })
+                    }
+                })
+            })
+            put("legacy_uc", false)
+            put("use_coords", useCoordinates)
+            put("use_order", true)
+        }
+        val requestModel = if (imageGuidance.action == NovelAiGenerationAction.INPAINT) {
+            "${settings.model.apiId}-inpainting"
+        } else {
+            settings.model.apiId
+        }
+        return buildJsonObject {
+            put("input", effectivePrompt.baseCaption)
+            put("model", requestModel)
+            put("action", imageGuidance.action.apiId)
+            put("parameters", buildJsonObject {
+                put("params_version", 3)
+                put("width", imageSize.width)
+                put("height", imageSize.height)
+                put("scale", settings.guidance)
+                put("sampler", settings.sampler.apiId)
+                put("steps", settings.steps)
+                put("seed", settings.seed)
+                put("extra_noise_seed", settings.seed)
+                put("n_samples", settings.count)
+                put("ucPreset", 3)
+                put("qualityToggle", false)
+                put("negative_prompt", negative)
+                put("noise_schedule", "karras")
+                put("legacy", false)
+                put("legacy_uc", false)
+                put("use_coords", useCoordinates)
+                put("legacy_v3_extend", false)
+                put("autoSmea", false)
+                put("sm", false)
+                put("sm_dyn", false)
+                put("dynamic_thresholding", false)
+                put("cfg_rescale", settings.cfgRescale)
+                put("skip_cfg_above_sigma", JsonNull)
+                put("deliberate_euler_ancestral_bug", false)
+                put("prefer_brownian", true)
+                put("stream", "msgpack")
+                put("v4_prompt", v4Prompt)
+                put("v4_negative_prompt", v4NegativePrompt)
+                if (enhance != null) {
+                    require(imageGuidance.action == NovelAiGenerationAction.IMAGE_TO_IMAGE && settings.count == 1)
+                    require(!enhance.upscaledEnhance || settings.model == NovelAiImageModel.V5_FULL)
+                    enhance.sourceParameters.forEach { (key, value) -> put(key, value) }
+                    put("upscaled_enhance", enhance.upscaledEnhance)
+                    put("color_correct", false)
+                    put("extra_noise_seed", (settings.seed - 1L) and 0xffff_ffffL)
+                }
+                when (imageGuidance.action) {
+                    NovelAiGenerationAction.IMAGE_TO_IMAGE -> {
+                        put("image", requireNotNull(imageGuidance.imageBase64) { "图生图缺少基图" })
+                        put("strength", imageGuidance.imageToImageStrength.coerceIn(0f, 1f))
+                        put("noise", imageGuidance.imageToImageNoise.coerceIn(0f, 1f))
+                    }
+                    NovelAiGenerationAction.INPAINT -> {
+                        put("image", requireNotNull(imageGuidance.imageBase64) { "Inpaint 缺少基图" })
+                        put("mask", requireNotNull(imageGuidance.maskBase64) { "Inpaint 缺少蒙版" })
+                        put("strength", imageGuidance.imageToImageStrength.coerceIn(0f, 1f))
+                        put("noise", imageGuidance.imageToImageNoise.coerceIn(0f, 1f))
+                        val inpaintStrength = imageGuidance.inpaintStrength.coerceIn(0f, 1f)
+                        put("inpaintImg2ImgStrength", inpaintStrength)
+                        put("add_original_image", false)
+                        if (inpaintStrength != 1f) {
+                            put("img2img", buildJsonObject {
+                                put("strength", inpaintStrength)
+                                put("color_correct", true)
+                            })
+                        }
+                    }
+                    NovelAiGenerationAction.TEXT_TO_IMAGE -> Unit
+                }
+                imageGuidance.preciseReferenceBase64?.let { reference ->
+                    put("director_reference_images", buildJsonArray { add(reference) })
+                    put("director_reference_descriptions", buildJsonArray {
+                        add(buildJsonObject {
+                            put("caption", buildJsonObject {
+                                put("base_caption", imageGuidance.preciseReferenceType.wireCaption)
+                                put("char_captions", buildJsonArray { })
+                            })
+                            put("legacy_uc", false)
+                        })
+                    })
+                    put("director_reference_information_extracted", buildJsonArray { add(1f) })
+                    put("director_reference_strength_values", buildJsonArray {
+                        add(imageGuidance.preciseReferenceStrength.coerceIn(0f, 1f))
+                    })
+                    put("director_reference_secondary_strength_values", buildJsonArray {
+                        add(NovelAiPreciseReferenceWirePolicy.secondaryStrength(imageGuidance.preciseReferenceFidelity))
+                    })
+                }
+                if (imageGuidance.vibes.isNotEmpty()) {
+                    put("reference_image_multiple", buildJsonArray {
+                        imageGuidance.vibes.forEach { add(it.encoding) }
+                    })
+                    put("reference_information_extracted_multiple", buildJsonArray {
+                        imageGuidance.vibes.forEach { add(it.informationExtracted.coerceIn(0f, 1f)) }
+                    })
+                    put("reference_strength_multiple", buildJsonArray {
+                        imageGuidance.vibes.forEach { add(it.strength.coerceIn(0f, 1f)) }
+                    })
+                }
+            })
+        }.toString()
+    }
+
+    private fun centerArray(center: DesignedCharacterCenter) = buildJsonArray {
+        add(buildJsonObject {
+            put("x", center.x)
+            put("y", center.y)
+        })
+    }
+
+    internal fun decodeFrame(frame: ByteArray, steps: Int = STEPS): NovelAiImageEvent? {
+        val unpacker = MessagePack.newDefaultUnpacker(frame)
+        val map = unpacker.unpackValue().asMapValue().map()
+        unpacker.close()
+        fun value(name: String): Value? = map.entries.firstOrNull {
+            it.key.isStringValue && it.key.asStringValue().asString() == name
+        }?.value
+        return when (value("event_type")?.asStringValue()?.asString()) {
+            "intermediate" -> {
+                val image = value("image")?.asBinaryValue()?.asByteArray()
+                    ?: error("intermediate 事件缺少图片")
+                val step = value("step_ix")?.asIntegerValue()?.toInt() ?: 0
+                NovelAiImageEvent.Intermediate(image, step, (step / steps.toFloat()).coerceIn(0f, 1f))
+            }
+            "final" -> NovelAiImageEvent.Final(
+                value("image")?.asBinaryValue()?.asByteArray() ?: error("final 事件缺少图片")
+            )
+            "error" -> {
+                val msg = value("message")?.asStringValue()?.asString()
+                NovelAiImageEvent.Error("NovelAI 服务端报错: ${msg ?: "未知错误"}")
+            }
+            "retry" -> null
+            else -> error("未知 NovelAI 流事件: ${value("event_type")?.asStringValue()?.asString() ?: "null"}")
+        }
+    }
+
+    private companion object {
+        val JSON_MEDIA_TYPE = "application/json; charset=utf-8".toMediaType()
+        const val ENDPOINT = "https://image.novelai.net/ai/generate-image-stream"
+        const val STEPS = 28
+        const val CONNECT_TIMEOUT_SECONDS = 30L
+        const val READ_TIMEOUT_MINUTES = 10L
+        const val WRITE_TIMEOUT_SECONDS = 30L
+        const val MAX_GENERATION_ATTEMPTS = 3
+        const val BASE_RETRY_DELAY_MS = 1_000L
+        const val MAX_RETRY_AFTER_SECONDS = 30L
+        fun randomSeed(): Int = kotlin.random.Random.nextInt(0, Int.MAX_VALUE)
+        fun correlationId(): String = (1..6).map { ALPHANUMERIC.random() }.joinToString("")
+        const val ALPHANUMERIC = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+
+        fun retryDelayMillis(failedAttempt: Int, retryAfterHeader: String?): Long {
+            val retryAfterSeconds = retryAfterHeader
+                ?.trim()
+                ?.toLongOrNull()
+                ?.coerceIn(0L, MAX_RETRY_AFTER_SECONDS)
+            return retryAfterSeconds?.times(1_000L) ?: BASE_RETRY_DELAY_MS * failedAttempt
+        }
+    }
+
+    fun newSeed(): Int = randomSeed()
+}

@@ -1,0 +1,395 @@
+package com.example.chatbar.domain.image
+
+import com.example.chatbar.domain.prompt.PromptTemplates
+import java.util.UUID
+import kotlinx.serialization.Serializable
+
+@Serializable
+enum class NovelAiImageModel(
+    val apiId: String,
+    val displayName: String,
+    val maxCharacters: Int,
+    val promptTokenLimit: Int,
+    val tokenizerKind: NovelAiTokenizerKind
+) {
+    V4_5_FULL("nai-diffusion-4-5-full", "V4.5 Full", 6, 512, NovelAiTokenizerKind.T5),
+    V5_FULL("nai-diffusion-5-full", "V5 Full", 22, 1471, NovelAiTokenizerKind.QWEN)
+}
+
+enum class NovelAiTokenizerKind { T5, QWEN }
+
+@Serializable
+enum class NovelAiSampler(val apiId: String, val displayName: String) {
+    EULER_ANCESTRAL("k_euler_ancestral", "Euler Ancestral"),
+    EULER("k_euler", "Euler"),
+    DPM_PLUS_PLUS_2S_ANCESTRAL("k_dpmpp_2s_ancestral", "DPM++ 2S Ancestral"),
+    DPM_PLUS_PLUS_2M("k_dpmpp_2m", "DPM++ 2M"),
+    DPM_PLUS_PLUS_SDE("k_dpmpp_sde", "DPM++ SDE"),
+    DDIM("ddim_v3", "DDIM")
+}
+
+@Serializable
+enum class NovelAiSeedMode { RANDOM, FIXED }
+
+@Serializable
+enum class NovelAiSizeTier(val displayName: String) {
+    SMALL("Small"), NORMAL("Normal"), LARGE("Large"), WALLPAPER("Wallpaper")
+}
+
+@Serializable
+enum class NovelAiAspectRatio(val displayName: String) {
+    PORTRAIT("Portrait"), SQUARE("Square"), LANDSCAPE("Landscape")
+}
+
+@Serializable
+data class NovelAiGenerationSettings(
+    val model: NovelAiImageModel = NovelAiImageModel.V4_5_FULL,
+    val sizeTier: NovelAiSizeTier = NovelAiSizeTier.NORMAL,
+    val aspectRatio: NovelAiAspectRatio = NovelAiAspectRatio.PORTRAIT,
+    val count: Int = 1,
+    val steps: Int = 28,
+    val guidance: Float = 6f,
+    val seedMode: NovelAiSeedMode = NovelAiSeedMode.RANDOM,
+    val seed: Long = 0L,
+    val sampler: NovelAiSampler = NovelAiSampler.EULER_ANCESTRAL,
+    val cfgRescale: Float = 0f,
+    val customWidth: Int? = null,
+    val customHeight: Int? = null,
+    val useCharacterPositions: Boolean = false
+) {
+    val usesCustomSize: Boolean get() = customWidth != null || customHeight != null
+    val maxAllowedBaseSeed: Long get() = MAX_SEED - (count.coerceIn(1, 4) - 1L)
+
+    fun normalized(): NovelAiGenerationSettings = copy(
+        aspectRatio = if (sizeTier == NovelAiSizeTier.WALLPAPER && aspectRatio == NovelAiAspectRatio.SQUARE) {
+            NovelAiAspectRatio.PORTRAIT
+        } else {
+            aspectRatio
+        }
+    )
+
+    fun imageSize(): NovelAiImageSize {
+        if (customWidth != null && customHeight != null) {
+            return NovelAiStudioSizePolicy.resolve(customWidth, customHeight)
+        }
+        val normalized = normalized()
+        val dimensions = when (normalized.sizeTier) {
+            NovelAiSizeTier.SMALL -> when (normalized.aspectRatio) {
+                NovelAiAspectRatio.PORTRAIT -> 512 to 768
+                NovelAiAspectRatio.SQUARE -> 640 to 640
+                NovelAiAspectRatio.LANDSCAPE -> 768 to 512
+            }
+            NovelAiSizeTier.NORMAL -> when (normalized.aspectRatio) {
+                NovelAiAspectRatio.PORTRAIT -> 832 to 1216
+                NovelAiAspectRatio.SQUARE -> 1024 to 1024
+                NovelAiAspectRatio.LANDSCAPE -> 1216 to 832
+            }
+            NovelAiSizeTier.LARGE -> when (normalized.aspectRatio) {
+                NovelAiAspectRatio.PORTRAIT -> 1024 to 1536
+                NovelAiAspectRatio.SQUARE -> 1472 to 1472
+                NovelAiAspectRatio.LANDSCAPE -> 1536 to 1024
+            }
+            NovelAiSizeTier.WALLPAPER -> when (normalized.aspectRatio) {
+                NovelAiAspectRatio.PORTRAIT, NovelAiAspectRatio.SQUARE -> 1088 to 1920
+                NovelAiAspectRatio.LANDSCAPE -> 1920 to 1088
+            }
+        }
+        return NovelAiImageSize(dimensions.first, dimensions.second, "${sizeTier.displayName} ${normalized.aspectRatio.displayName}")
+    }
+
+    fun validationError(characterCount: Int): String? = when {
+        sizeValidationError() != null -> sizeValidationError()
+        count !in 1..4 -> "生成数量必须在 1–4 之间"
+        steps !in 1..50 -> "Steps 必须在 1–50 之间"
+        guidance !in 1f..10f -> "Guidance 必须在 1.0–10.0 之间"
+        cfgRescale !in 0f..1f -> "CFG Rescale 必须在 0.0–1.0 之间"
+        seedMode == NovelAiSeedMode.FIXED && seed !in MIN_SEED..maxAllowedBaseSeed -> "当前数量下 Seed 必须在 $MIN_SEED–$maxAllowedBaseSeed 之间"
+        characterCount > model.maxCharacters -> "${model.displayName} 最多支持 ${model.maxCharacters} 个角色；当前 $characterCount 个"
+        else -> null
+    }
+
+    fun sizeValidationError(): String? = if (usesCustomSize) {
+        NovelAiStudioSizePolicy.validationError(customWidth, customHeight)
+    } else null
+
+    companion object {
+        const val MIN_SEED = 0L
+        const val MAX_SEED = 4_294_967_295L
+        const val MAX_BASE_SEED = MAX_SEED - 3L
+
+        fun legacy(
+            seed: Int,
+            count: Int = 1,
+            model: NovelAiImageModel = NovelAiImageModel.V4_5_FULL
+        ): NovelAiGenerationSettings = NovelAiGenerationSettings(
+            model = model,
+            count = count,
+            steps = 28,
+            guidance = 8f,
+            seedMode = NovelAiSeedMode.FIXED,
+            seed = seed.toLong(),
+            sampler = NovelAiSampler.EULER_ANCESTRAL
+        )
+    }
+}
+
+@Serializable
+data class NovelAiCharacterPromptDraft(
+    val id: String = UUID.randomUUID().toString(),
+    val prompt: String = "",
+    val negativePrompt: String = "",
+    val negativeExpanded: Boolean = false,
+    val center: DesignedCharacterCenter? = null
+)
+
+@Serializable
+data class NovelAiCharacterPromptSource(
+    val name: String = "",
+    val prompt: String = ""
+)
+
+@Serializable
+data class NovelAiPositivePromptSnapshot(
+    val basePrompt: String = "",
+    val characterPrompts: List<String> = emptyList()
+)
+
+fun NovelAiPositivePromptSnapshot.toPromptPlan(): NovelAiPromptPlan = NovelAiPromptPlan(
+    baseCaption = basePrompt,
+    characterCaptions = characterPrompts.mapIndexed { index, prompt ->
+        NovelAiCharacterCaption(
+            prompt = prompt,
+            center = NovelAiPromptDesigner.fallbackCenter(index, characterPrompts.size)
+        )
+    }
+)
+
+@Serializable
+data class NovelAiStudioDraft(
+    val stylePrompt: String = "",
+    val basePrompt: String = "",
+    val extraPrompt: String = "",
+    val styleExpanded: Boolean = false,
+    val extraExpanded: Boolean = false,
+    val characters: List<NovelAiCharacterPromptDraft> = emptyList(),
+    val importedCharacterCardId: String? = null,
+    val importedCharacterPromptSources: List<NovelAiCharacterPromptSource> = emptyList(),
+    val negativePrompt: String = PromptTemplates.defaultCharacterNaiNegativePrompt(),
+    val naturalLanguageMode: Boolean = false,
+    val imageDescription: String = "",
+    val extraRequirement: String = "",
+    val aiDesignModelId: String? = null,
+    val aiDesignNaturalLanguageMode: Boolean = false,
+    val continuousModeEnabled: Boolean = false,
+    val continuousTargetCount: Int = 10,
+    val copyPositivePromptIgnoreStyle: Boolean = true,
+    /** true 时跟随已导入角色卡与全局配置；selectedModel 缓存当前生效值。 */
+    val followDefaultNovelAiImageModel: Boolean = false,
+    val selectedModel: NovelAiImageModel = NovelAiImageModel.V4_5_FULL,
+    val v45Settings: NovelAiGenerationSettings = NovelAiGenerationSettings(model = NovelAiImageModel.V4_5_FULL),
+    val v5Settings: NovelAiGenerationSettings = NovelAiGenerationSettings(model = NovelAiImageModel.V5_FULL),
+    val outputExpanded: Boolean = true,
+    val negativeExpanded: Boolean = false,
+    val advancedExpanded: Boolean = false,
+    val aiPanelExpanded: Boolean = false,
+    val conversionSnapshot: NovelAiPositivePromptSnapshot? = null,
+    val imageGuidance: NovelAiImageGuidanceDraft = NovelAiImageGuidanceDraft(),
+    val contentRevision: Long = 0L,
+    val promptContentRevision: Long = 0L,
+    val updatedAt: Long = System.currentTimeMillis()
+) {
+    val activeSettings: NovelAiGenerationSettings
+        get() = when (selectedModel) {
+            NovelAiImageModel.V4_5_FULL -> v45Settings.copy(model = selectedModel).normalized()
+            NovelAiImageModel.V5_FULL -> v5Settings.copy(model = selectedModel).normalized()
+        }
+
+    fun withActiveSettings(settings: NovelAiGenerationSettings): NovelAiStudioDraft = when (settings.model) {
+        NovelAiImageModel.V4_5_FULL -> copy(selectedModel = settings.model, v45Settings = settings.normalized())
+        NovelAiImageModel.V5_FULL -> copy(selectedModel = settings.model, v5Settings = settings.normalized())
+    }
+
+    fun importCharacterCardPromptSources(
+        cardId: String,
+        cardStylePrompt: String,
+        sources: List<NovelAiCharacterPromptSource>
+    ): NovelAiStudioDraft = copy(
+        stylePrompt = cardStylePrompt.trim().ifBlank { stylePrompt },
+        importedCharacterCardId = cardId,
+        importedCharacterPromptSources = sources
+    )
+}
+
+@Serializable
+data class NovelAiStudioUndoDraft(val draft: NovelAiStudioDraft? = null)
+
+@Serializable
+data class NovelAiGuidanceEditorCheckpoint(val guidance: NovelAiImageGuidanceDraft? = null)
+
+@Serializable
+data class NovelAiGenerationRecipe(
+    val stylePrompt: String = "",
+    val basePrompt: String = "",
+    val extraPrompt: String = "",
+    val characters: List<NovelAiCharacterPromptDraft> = emptyList(),
+    val negativePrompt: String = PromptTemplates.defaultCharacterNaiNegativePrompt(),
+    val naturalLanguageMode: Boolean = false,
+    val settings: NovelAiGenerationSettings = NovelAiGenerationSettings(),
+    val imageGuidance: NovelAiImageGuidanceDraft = NovelAiImageGuidanceDraft()
+)
+
+fun NovelAiStudioDraft.applyDesignedPromptPlan(
+    plan: NovelAiPromptPlan,
+    targetImageModel: NovelAiImageModel
+): NovelAiStudioDraft = copy(
+    basePrompt = plan.baseCaption,
+    extraPrompt = "",
+    characters = plan.characterCaptions.map { caption ->
+        NovelAiCharacterPromptDraft(prompt = caption.prompt, negativePrompt = "")
+    },
+    followDefaultNovelAiImageModel = false,
+    selectedModel = targetImageModel,
+    naturalLanguageMode = false,
+    conversionSnapshot = null
+)
+
+fun NovelAiStudioDraft.applyReversePromptPlan(
+    plan: NovelAiPromptPlan
+): NovelAiStudioDraft = copy(
+    basePrompt = plan.baseCaption,
+    extraPrompt = "",
+    characters = plan.characterCaptions.mapIndexed { index, caption ->
+        val old = characters.getOrNull(index)
+        (old ?: NovelAiCharacterPromptDraft()).copy(prompt = caption.prompt)
+    },
+    conversionSnapshot = null
+)
+
+@Serializable
+data class NovelAiGenerationHistoryImage(
+    val path: String = "",
+    val seed: Long = 0L
+)
+
+@Serializable
+data class NovelAiGenerationHistoryEntry(
+    val id: String = UUID.randomUUID().toString(),
+    val images: List<NovelAiGenerationHistoryImage> = emptyList(),
+    val recipe: NovelAiGenerationRecipe = NovelAiGenerationRecipe(),
+    val createdAt: Long = System.currentTimeMillis()
+)
+
+data class NovelAiHistoryImageSelection(
+    val entryId: String,
+    val imagePath: String
+)
+
+data class NovelAiHistoryImageDeleteResult(
+    val deletedCount: Int,
+    val cleanupFailureCount: Int
+)
+
+object NovelAiHistoryDeletionPolicy {
+    fun apply(
+        entries: List<NovelAiGenerationHistoryEntry>,
+        selections: List<NovelAiHistoryImageSelection>
+    ): Map<String, NovelAiGenerationHistoryEntry?> {
+        val originals = entries.associateBy(NovelAiGenerationHistoryEntry::id)
+        return selections.distinctBy { it.entryId to it.imagePath }
+            .groupBy(NovelAiHistoryImageSelection::entryId)
+            .mapValues { (entryId, selected) ->
+                val entry = requireNotNull(originals[entryId]) { "历史批次已不存在" }
+                val selectedPaths = selected.map(NovelAiHistoryImageSelection::imagePath).toSet()
+                val available = entry.images.map(NovelAiGenerationHistoryImage::path).toSet()
+                require(selectedPaths.all(available::contains)) { "历史图片已发生变化，请重新选择" }
+                entry.copy(images = entry.images.filterNot { it.path in selectedPaths })
+                    .takeIf { it.images.isNotEmpty() }
+            }
+    }
+}
+
+fun novelAiHistoryImages(paths: List<String>, baseSeed: Long): List<NovelAiGenerationHistoryImage> =
+    paths.mapIndexed { index, path -> NovelAiGenerationHistoryImage(path, baseSeed + index) }
+
+enum class NovelAiHistoryApplyMode { FULL, NEW_SEED, SEED_ONLY }
+
+fun NovelAiGenerationRecipe.requiresImageGuidanceReuseWarning(mode: NovelAiHistoryApplyMode): Boolean =
+    mode != NovelAiHistoryApplyMode.FULL && imageGuidance.hasMissingHistorySource()
+
+fun NovelAiStudioDraft.applyHistoryRecipe(
+    recipe: NovelAiGenerationRecipe,
+    imageSeed: Long,
+    mode: NovelAiHistoryApplyMode
+): NovelAiStudioDraft = when (mode) {
+    NovelAiHistoryApplyMode.FULL -> copy(
+        stylePrompt = recipe.stylePrompt,
+        basePrompt = recipe.basePrompt,
+        extraPrompt = recipe.extraPrompt,
+        characters = recipe.characters,
+        negativePrompt = recipe.negativePrompt,
+        followDefaultNovelAiImageModel = false,
+        selectedModel = recipe.settings.model,
+        conversionSnapshot = null,
+        imageGuidance = recipe.imageGuidance.restoredFromHistory()
+    ).withActiveSettings(recipe.settings.copy(seedMode = NovelAiSeedMode.FIXED, seed = imageSeed))
+    NovelAiHistoryApplyMode.NEW_SEED -> copy(
+        stylePrompt = recipe.stylePrompt,
+        basePrompt = recipe.basePrompt,
+        extraPrompt = recipe.extraPrompt,
+        characters = recipe.characters,
+        negativePrompt = recipe.negativePrompt,
+        followDefaultNovelAiImageModel = false,
+        selectedModel = recipe.settings.model,
+        conversionSnapshot = null,
+        imageGuidance = recipe.imageGuidance.restoredFromHistory()
+    ).withActiveSettings(recipe.settings.copy(seedMode = NovelAiSeedMode.RANDOM))
+    NovelAiHistoryApplyMode.SEED_ONLY -> withActiveSettings(
+        activeSettings.copy(seedMode = NovelAiSeedMode.FIXED, seed = imageSeed)
+    )
+}
+
+fun NovelAiStudioDraft.toRecipe(settings: NovelAiGenerationSettings = activeSettings): NovelAiGenerationRecipe =
+    NovelAiGenerationRecipe(
+        stylePrompt = stylePrompt,
+        basePrompt = basePrompt,
+        extraPrompt = extraPrompt,
+        characters = characters,
+        negativePrompt = negativePrompt,
+        settings = settings,
+        imageGuidance = imageGuidance.toHistoryRecipe()
+    )
+
+fun NovelAiImageGuidanceDraft.hasMissingHistorySource(): Boolean =
+    action != NovelAiGenerationAction.TEXT_TO_IMAGE ||
+        referenceMode == NovelAiReferenceMode.PRECISE ||
+        referenceMode == NovelAiReferenceMode.VIBE && vibes.any { it.encodedVibe.isNullOrBlank() }
+
+private fun NovelAiImageGuidanceDraft.toHistoryRecipe(): NovelAiImageGuidanceDraft = copy(
+    baseImage = null,
+    maskImage = null,
+    preciseReference = preciseReference.copy(asset = null),
+    vibes = vibes.map { it.copy(asset = null) }.filter { !it.encodedVibe.isNullOrBlank() }
+)
+
+private fun NovelAiImageGuidanceDraft.restoredFromHistory(): NovelAiImageGuidanceDraft = copy(
+    action = NovelAiGenerationAction.TEXT_TO_IMAGE,
+    baseImage = null,
+    maskImage = null,
+    preciseReference = preciseReference.copy(asset = null),
+    referenceMode = when {
+        referenceMode == NovelAiReferenceMode.VIBE && vibes.any { !it.encodedVibe.isNullOrBlank() } ->
+            NovelAiReferenceMode.VIBE
+        else -> NovelAiReferenceMode.NONE
+    },
+    vibes = vibes.map { it.copy(asset = null) }.filter { !it.encodedVibe.isNullOrBlank() }
+)
+
+fun NovelAiStudioDraft.copyPositivePrompt(): String {
+    return NovelAiStudioPromptClipboard.encode(this)
+}
+
+fun NovelAiStudioDraft.effectiveBasePrompt(): String =
+    NovelAiPromptDesigner.prependStylePrompt(
+        stylePrompt,
+        NovelAiPromptDesigner.prependStylePrompt(basePrompt, extraPrompt)
+    )

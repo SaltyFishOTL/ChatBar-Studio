@@ -1,0 +1,5 @@
+{
+  "name": "ChatBar Studio",
+  "description": "本机优先的独立生图工作室，用户自带 NovelAI 与 LLM API。",
+  "requestFramePermissions": ["clipboard-read"]
+}
