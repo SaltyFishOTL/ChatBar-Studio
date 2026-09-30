@@ -76,6 +76,7 @@ type Store = {
     ) => Promise<T>,
   ) => Promise<T>;
   reload: () => Promise<void>;
+  flushSaves: () => Promise<void>;
 };
 const Context = createContext<Store | null>(null);
 export const useStudio = () => useContext(Context)!;
@@ -120,6 +121,14 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       .catch(() => {})
       .then(fn)
       .catch(fail);
+  };
+  const flushSaves = async () => {
+    await saveQueue.current;
+    if (!current.current || !config.current) throw Error("本机工作室尚未就绪");
+    // Re-save the latest state: the normal edit queue reports failures without rejecting.
+    // Here persistence errors must reject so an update cannot discard unsaved edits.
+    await saveDraft(current.current);
+    await saveSettings(config.current);
   };
   const reload = async () => {
     const d = await db;
@@ -473,6 +482,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
         applyHistory,
         runExclusive,
         reload,
+        flushSaves,
       }}
     >
       {children}

@@ -20,7 +20,7 @@
 - 生成设置按 APP 拆成尺寸档、比例、1–4 张按钮；高级设置摘要展开 Steps/CFG 滑块、Sampler、随机 Seed。尺寸编辑器可交换宽高、预览最终比例，确认一次保存、取消不写入。角色位置改为独立编号画布、AI 自动/自定义、百分比、均匀排列；V4.5 网格吸附、V5 自由位置，与请求共用规范化规则。新组件在 `ui/components/GenerationControls.tsx`、`SizeEditor.tsx`、`CharacterPositionEditor.tsx`，规则在 `domain/studioControls.ts`。`GenerationSettings.sizeChoice` 仅保存可选界面选择状态；旧草稿按宽高识别，无存储迁移。
 - 图像引导编辑、聚焦重绘、Precise/Vibe、元数据、Enhance/Upscale、APNG、ZIP 备份。
 - PWA、静态资源服务器、Cloud Run Dockerfile。
-- PWA 使用明确点击的「刷新更新」，普通刷新可能仍打开当前激活的离线版本。侧栏新增界面构建时间与「检查更新」，每分钟及恢复前台/联网检查同源 `version.json`，版本文件不加入离线缓存。连接失败明确提示缓存状态，不清除 IndexedDB 或强制中断生成。2026-09-29 用户反馈刷新无变化时，查到 8080 服务已停止；恢复后 HTTP 首页及版本文件正常。不要仅凭构建成功声称预览已更新，应确认预览服务存活与返回构建版本。
+- PWA 后台轮询只检查版本，不发送 SKIP_WAITING；useRegisterSW.onNeedReload 覆盖默认刷新，平台/其他标签页接管不触发导航。仅用户点击「刷新更新」后等待草稿与设置落盘、目标 /sw.js 接管，再单次刷新；生图、AI 设计和未保存图片阻止更新，激活失败或超时保留当前页。更新期间暂禁页面操作。侧栏保留版本时间与检查更新，version.json 不加入离线缓存。入口为 ui/App.tsx、ui/studioUpdate.ts、store.flushSaves。普通刷新可能仍打开旧离线版本；不要仅凭构建成功声称预览或线上已更新。后台不闪屏与跨标签页行为仍待浏览器验收。
 - 保留页面布局，主题色、圆角、表面与字体层级对齐 `ChatBarTheme.kt`；品牌直接使用 Android 原图，功能图标使用同源 Lucide。手机图标按钮保留可见入口并扩大触摸区域。
 - 模型 ID 支持手填及检索选择：当前 API `/models`、多关键词、系列筛选、A–Z/Z–A、当前项置顶、刷新/重试。地址或 Key 变化销毁旧列表并取消旧请求；刷新失败保留旧列表，关闭窗口取消请求。
 - 画风库与工作室选择器支持 V4.5/V5 筛选，BOTH 和未限定模型的个人卡均可见；`style-metadata.json` 从 Android 原预置提取独立负面词存在标识，选卡不写入负面文本。

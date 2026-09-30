@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { useRegisterSW } from "virtual:pwa-register/react";
 import { useStudio } from "./store";
+import { activateStudioUpdate } from "./studioUpdate";
 import { Button, Modal } from "./components/ui";
 import { Studio } from "./Studio";
 import { Styles } from "./Styles";
@@ -31,7 +32,10 @@ const pages = [
   ["tools", "图像工具", Wrench],
   ["settings", "设置", Settings],
 ] as const;
-function isVersionNewer(remote?: string | null, local?: string | null): boolean {
+function isVersionNewer(
+  remote?: string | null,
+  local?: string | null,
+): boolean {
   if (!remote || !local || remote === local) return false;
   const remoteTime = Date.parse(remote);
   const localTime = Date.parse(local);
@@ -49,6 +53,12 @@ export function App() {
     [toolAsset, setToolAsset] = useState("");
   const registration = useRef<ServiceWorkerRegistration | undefined>(undefined);
   const checkingRef = useRef(false);
+  const updatingRef = useRef(false);
+  const [updating, setUpdating] = useState(false);
+  const [designBusy, setDesignBusy] = useState(false);
+  const blocked = s.busy || designBusy || s.unsaved.length > 0;
+  const blockedRef = useRef(blocked);
+  blockedRef.current = blocked;
   const [checking, setChecking] = useState(false);
   const [updateError, setUpdateError] = useState("");
   const [serviceOffline, setServiceOffline] = useState(false);
@@ -56,13 +66,17 @@ export function App() {
   const buildId = import.meta.env.VITE_STUDIO_BUILD as string;
   const {
     needRefresh: [needRefresh, setNeedRefresh],
-    updateServiceWorker,
   } = useRegisterSW({
     immediate: true,
     onRegisteredSW(_url, value) {
       registration.current = value;
     },
     onNeedRefresh() {
+      void checkRef.current(false);
+    },
+    onNeedReload() {
+      // Controller changes (including other tabs/platform workers) never authorize a reload.
+      // Only the explicit update button below owns page navigation.
       void checkRef.current(false);
     },
     onRegisterError() {
@@ -73,7 +87,7 @@ export function App() {
   });
   const checkUpdate = useCallback(
     async (manual = false) => {
-      if (checkingRef.current) return;
+      if (checkingRef.current || updatingRef.current) return;
       checkingRef.current = true;
       setChecking(true);
       setUpdateError("");
@@ -103,14 +117,6 @@ export function App() {
         if (!hasNewer) {
           // 当前版本较新或一致，不显示刷新提示
           setNeedRefresh(false);
-          if ("serviceWorker" in navigator) {
-            const current =
-              registration.current ||
-              (await navigator.serviceWorker.getRegistration());
-            if (current?.waiting) {
-              current.waiting.postMessage({ type: "SKIP_WAITING" });
-            }
-          }
           if (manual) s.notify("当前已是最新界面");
         } else {
           // 远端确有更新版本
@@ -159,6 +165,32 @@ export function App() {
       document.removeEventListener("visibilitychange", check);
     };
   }, []);
+  const applyUpdate = async () => {
+    if (updatingRef.current || checkingRef.current) return;
+    if (blockedRef.current) {
+      setUpdateError(
+        "请先结束当前任务，并保存或下载未保存的图片，再更新界面。",
+      );
+      return;
+    }
+    updatingRef.current = true;
+    setUpdating(true);
+    setUpdateError("");
+    try {
+      await s.flushSaves();
+      if (blockedRef.current) throw Error("当前任务尚未结束，请稍后再更新。");
+      await activateStudioUpdate(registration.current);
+      if (blockedRef.current) throw Error("当前任务尚未结束，请稍后再更新。");
+      // One navigation, only after an explicit click and successful preparation.
+      window.location.reload();
+    } catch (error) {
+      setUpdateError(
+        error instanceof Error ? error.message : "更新失败，请稍后重试。",
+      );
+      updatingRef.current = false;
+      setUpdating(false);
+    }
+  };
   const navigate = (next: string) => {
     setPage(next);
     setMenu(false);
@@ -168,7 +200,7 @@ export function App() {
     navigate("tools");
   };
   return (
-    <div className="app-shell">
+    <div className="app-shell" inert={updating} aria-busy={updating}>
       <header className="mobile-header">
         <button className="brand" onClick={() => navigate("studio")}>
           <img src="/icon.png" alt="" />
@@ -271,41 +303,33 @@ export function App() {
         {available && !serviceOffline && (
           <div className="banner">
             <span>
-              {needRefresh
-                ? "新版界面已就绪。保存当前编辑后点击刷新更新，本机数据会保留。"
-                : "检测到新版界面，正在准备更新…"}
+              {updating
+                ? "正在保存并准备新版界面…"
+                : blocked
+                  ? "新版界面可用。请先结束任务并处理未保存图片，当前页面不会自动刷新。"
+                  : needRefresh
+                    ? "新版界面已就绪，不会自动刷新。保存当前编辑后可点击刷新更新。"
+                    : "检测到新版界面，不会自动刷新。保存当前编辑后可点击刷新更新。"}
             </span>
             <Button
               variant="secondary"
               size="sm"
-              disabled={s.busy}
-              onClick={async () => {
-                setUpdateError("");
-                try {
-                  if (registration.current?.waiting) {
-                    registration.current.waiting.postMessage({
-                      type: "SKIP_WAITING",
-                    });
-                  }
-                  await updateServiceWorker(true);
-                } catch {
-                  // ignore
-                }
-                setNeedRefresh(false);
-                setAvailable(false);
-                setTimeout(() => {
-                  window.location.reload();
-                }, 200);
-              }}
+              disabled={blocked || checking || updating}
+              onClick={() => void applyUpdate()}
             >
-              刷新更新
+              {updating ? "正在更新…" : "刷新更新"}
             </Button>
           </div>
         )}
         {page === "studio" && <Studio navigate={navigate} onTool={onTool} />}
         {page === "styles" && <Styles />}
         {page === "library" && <Library />}
-        {page === "design" && <Design onApply={() => navigate("studio")} />}
+        {page === "design" && (
+          <Design
+            onApply={() => navigate("studio")}
+            onBusyChange={setDesignBusy}
+          />
+        )}
         {page === "history" && <History onTool={onTool} />}
         {page === "tools" && (
           <ToolsPage

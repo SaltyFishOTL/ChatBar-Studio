@@ -42,7 +42,13 @@ const blank = (
   references: structuredClone(references),
   turns: [],
 });
-export function Design({ onApply }: { onApply: () => void }) {
+export function Design({
+  onApply,
+  onBusyChange,
+}: {
+  onApply: () => void;
+  onBusyChange: (busy: boolean) => void;
+}) {
   const s = useStudio(),
     [conversation, setConversation] = useState<DesignConversation>(() =>
       blank(s.settings.extraRequirement, s.settings.characterReferences),
@@ -58,6 +64,10 @@ export function Design({ onApply }: { onApply: () => void }) {
     current = useRef(conversation),
     end = useRef<HTMLDivElement>(null);
   current.current = conversation;
+  useEffect(() => {
+    onBusyChange(busy);
+    return () => onBusyChange(false);
+  }, [busy, onBusyChange]);
   const loadHistories = async () =>
     setHistories(
       (await (await db).getAll("conversations")).sort(
