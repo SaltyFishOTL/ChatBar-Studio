@@ -9,9 +9,11 @@ export const joinPrompt = (...parts: string[]) =>
     .map((s) => s.trim())
     .filter(Boolean)
     .join(", ");
+export const activeCharacters = (d: StudioDraft) =>
+  d.characters.filter((c) => c.enabled !== false);
 export function normalizedPrompt(d: StudioDraft) {
   const normalize = (s: string) => s.replaceAll("，", ",");
-  const characters = d.characters.map((c) => ({
+  const characters = activeCharacters(d).map((c) => ({
     ...c,
     prompt: normalize(c.prompt),
     negative: normalize(c.negative),
@@ -102,7 +104,7 @@ export function validateDraft(d: StudioDraft) {
   effectiveSize(s.width, s.height);
   if (!joinPrompt(d.style, d.base, d.extra).trim())
     throw Error("请输入正面提示词");
-  if (d.characters.length > MODELS[d.model].roles)
+  if (activeCharacters(d).length > MODELS[d.model].roles)
     throw Error(
       `${MODELS[d.model].name} 最多支持 ${MODELS[d.model].roles} 个角色，不会自动截断`,
     );
@@ -112,7 +114,7 @@ export function validateDraft(d: StudioDraft) {
     ![
       s.guidance,
       s.cfgRescale,
-      ...d.characters.flatMap((c) => [c.center.x, c.center.y]),
+      ...activeCharacters(d).flatMap((c) => [c.center.x, c.center.y]),
     ].every(Number.isFinite)
   )
     throw Error("生成参数必须是有效数字");
@@ -200,7 +202,7 @@ export function pastePositive(text: string, d: StudioDraft): StudioDraft {
         }),
       ),
     };
-    if (r.characters.length > MODELS[d.model].roles)
+    if (activeCharacters(r).length > MODELS[d.model].roles)
       throw Error("角色数量超限");
     return r;
   }
@@ -237,7 +239,8 @@ export function pastePositive(text: string, d: StudioDraft): StudioDraft {
   const roles = [...values.keys()].filter((k) => k.startsWith("角色 "));
   if (
     roles.some((k, i) => k !== `角色 ${i + 1}`) ||
-    roles.length > MODELS[d.model].roles
+    roles.filter((_, i) => d.characters[i]?.enabled !== false).length >
+      MODELS[d.model].roles
   )
     throw Error("角色编号不连续或数量超限");
   return {
@@ -247,6 +250,7 @@ export function pastePositive(text: string, d: StudioDraft): StudioDraft {
     extra: value("补充"),
     characters: roles.map((k, i) => ({
       id: d.characters[i]?.id || crypto.randomUUID(),
+      enabled: d.characters[i]?.enabled ?? true,
       prompt: value(k),
       negative: d.characters[i]?.negative || "",
       center: d.characters[i]?.center || { x: 0.5, y: 0.5 },

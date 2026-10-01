@@ -19,6 +19,7 @@
 | 远程翻译                   | 冻结基线无远程翻译调用路径                 | 保留同意状态字段，当前只走本地翻译              | 未擅自添加远程服务；若旧版本另有入口，需提供版本后对照                         |
 | 法典                       | NovelAiCodexCatalog                        | 完整 codex.json / Worker / Library              | 原文浏览、中文 n-gram 召回、首轮/修改轮区分                                    |
 | 分段、复制粘贴、权重       | StudioModels / PromptClipboard             | promptPolicy / Studio / PromptEditor            | 基础、补充、画风、角色正负面、基础负面；全屏确认写回                           |
+| 角色折叠/停用              | NovelAiCharacterPromptDraft.enabled / activeCharacters | Studio / promptPolicy.activeCharacters | 折叠保留内容但暂停参与生图；展开恢复；草稿/历史/撤销/备份保留状态，旧数据默认启用 |
 | Token 计数                 | PromptTokenCounter / V5TextPolicy          | tokenizer Worker / normalizedPrompt             | T5、Qwen 数据与算法迁入；与请求共用规范化                                      |
 | 生图 / 批量 / 连续 / 预览  | NovelAiImageService / StreamFrameDecoder   | novelai / store                                 | MsgPack 分帧、仅 429 自动重试、启动快照、整批事务                              |
 | 额度与费用                 | NovelAiAccountService                      | novelai / Settings / Studio                     | 生成按钮旁显示积分、V5 额度和估算张数；30 秒/前台/联网/批次/任务结束刷新；实际余额待验证 |

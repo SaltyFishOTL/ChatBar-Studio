@@ -57,6 +57,7 @@ export function validateManifest(m: any) {
       str(c.id, "角色 ID");
       str(c.prompt, "角色正面");
       str(c.negative, "角色负面");
+      if (c.enabled !== undefined) bool(c.enabled, "角色启用状态");
       obj(c.center, "角色位置");
       num(c.center.x, "角色 X");
       num(c.center.y, "角色 Y");

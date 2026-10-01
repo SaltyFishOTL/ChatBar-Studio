@@ -11,7 +11,7 @@ import {
   evenlyPlaced,
   focusPreviewSize,
 } from "../../domain/studioControls";
-import { effectiveSize } from "../../domain/promptPolicy";
+import { activeCharacters, effectiveSize } from "../../domain/promptPolicy";
 import { Button, Field, Modal } from "./ui";
 import { useInpaintCanvas } from "./SizeEditor";
 
@@ -30,7 +30,7 @@ export function CharacterPositionEditor({
   onClose: () => void;
   onConfirm: (enabled: boolean, centers: Record<string, Center>) => void;
 }) {
-  const characters = draft.characters,
+  const characters = activeCharacters(draft),
     settings = draft.perModel[draft.model];
   const initial = useMemo(
     () =>
@@ -173,9 +173,10 @@ export function CharacterPositionEditor({
             value={selected}
             onChange={(e) => setSelected(e.target.value)}
           >
-            {characters.map((c, i) => (
+            {characters.map((c) => (
               <option key={c.id} value={c.id}>
-                角色 {i + 1} · {c.prompt.trim().slice(0, 24) || "未填写"}
+                角色 {draft.characters.indexOf(c) + 1} ·{" "}
+                {c.prompt.trim().slice(0, 24) || "未填写"}
               </option>
             ))}
           </select>
@@ -232,7 +233,7 @@ export function CharacterPositionEditor({
                   style={{ top: `${step * 20}%` }}
                 />
               ))}
-              {characters.map((c, i) => {
+              {characters.map((c) => {
                 const center = centers[c.id] || initial[c.id];
                 return (
                   <span
@@ -245,7 +246,7 @@ export function CharacterPositionEditor({
                     }}
                     aria-hidden="true"
                   >
-                    {i + 1}
+                    {draft.characters.indexOf(c) + 1}
                   </span>
                 );
               })}

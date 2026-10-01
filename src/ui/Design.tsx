@@ -29,6 +29,7 @@ import {
   type ImageModel,
 } from "../domain/types";
 import { designTurn, type DesignProgress } from "../domain/design";
+import { activeCharacters } from "../domain/promptPolicy";
 import { normalizeImage } from "../domain/images";
 const blank = (
   extraRequirement: string,
@@ -195,8 +196,8 @@ export function Design({
     if (
       attachment &&
       (!s.draft.base.trim() ||
-        s.draft.characters.some((c) => !c.prompt.trim()) ||
-        s.draft.characters.length > MODELS[target].roles)
+        activeCharacters(s.draft).some((c) => !c.prompt.trim()) ||
+        activeCharacters(s.draft).length > MODELS[target].roles)
     ) {
       s.fail(
         Error(
@@ -220,7 +221,7 @@ export function Design({
             attachment: {
               sizePreset: "PORTRAIT",
               baseCaption: s.draft.base,
-              characters: s.draft.characters.map((c) => ({
+              characters: activeCharacters(s.draft).map((c) => ({
                 caption: c.prompt,
               })),
             } as DesignReply,

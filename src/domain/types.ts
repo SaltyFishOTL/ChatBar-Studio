@@ -22,6 +22,7 @@ export type StyleCard = {
   updatedAt: number;
 };
 export type Character = {
+  enabled?: boolean;
   id: string;
   prompt: string;
   negative: string;
@@ -198,6 +199,7 @@ export type Task = {
 };
 export const uid = () => crypto.randomUUID();
 export const newCharacter = (): Character => ({
+  enabled: true,
   id: uid(),
   prompt: "",
   negative: "",

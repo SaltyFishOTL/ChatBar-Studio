@@ -17,6 +17,8 @@ import {
   Download,
   Pencil,
   ChevronRight,
+  ChevronUp,
+  ChevronDown,
   RefreshCw,
 } from "lucide-react";
 import { useStudio } from "./store";
@@ -26,6 +28,7 @@ import { Styles } from "./Styles";
 import { GuidanceEditor } from "./Guidance";
 import { MODELS, newCharacter, type StudioDraft } from "../domain/types";
 import {
+  activeCharacters,
   copyPositive,
   pastePositive,
   effectiveSize,
@@ -46,6 +49,7 @@ export function Studio({
 }) {
   const s = useStudio(),
     d = s.draft,
+    activeRoles = activeCharacters(d),
     g = d.perModel[d.model],
     [stylePicker, setStylePicker] = useState(false),
     [guidance, setGuidance] = useState(false),
@@ -239,13 +243,13 @@ export function Studio({
               <h3>
                 角色{" "}
                 <span className="badge">
-                  {d.characters.length}/{MODELS[d.model].roles}
+                  {activeRoles.length}/{MODELS[d.model].roles}
                 </span>
               </h3>
               <Button
                 variant="ghost"
                 size="sm"
-                disabled={d.characters.length >= MODELS[d.model].roles}
+                disabled={activeRoles.length >= MODELS[d.model].roles}
                 onClick={() =>
                   s.edit((v) => ({
                     ...v,
@@ -262,7 +266,7 @@ export function Studio({
               <Button
                 variant="ghost"
                 size="sm"
-                disabled={!d.characters.length}
+                disabled={!activeRoles.length}
                 onClick={() => setPositionDraft(structuredClone(d))}
               >
                 <Pencil size={16} />
@@ -272,7 +276,10 @@ export function Studio({
             {d.characters.map((c, i) => (
               <section key={c.id} className="role-card">
                 <div className="section-heading">
-                  <strong>角色 {i + 1}</strong>
+                  <strong>
+                    角色 {i + 1}
+                    {c.enabled === false && " · 已停用"}
+                  </strong>
                   <div className="actions compact">
                     <Button
                       size="icon"
@@ -311,6 +318,37 @@ export function Studio({
                     <Button
                       size="icon"
                       variant="ghost"
+                      title={
+                        c.enabled === false
+                          ? "展开角色（参与生图）"
+                          : "折叠角色（不参与生图）"
+                      }
+                      aria-label={
+                        c.enabled === false
+                          ? "展开角色（参与生图）"
+                          : "折叠角色（不参与生图）"
+                      }
+                      aria-expanded={c.enabled !== false}
+                      onClick={() =>
+                        s.edit((v) => ({
+                          ...v,
+                          characters: v.characters.map((x) =>
+                            x.id === c.id
+                              ? { ...x, enabled: x.enabled === false }
+                              : x,
+                          ),
+                        }))
+                      }
+                    >
+                      {c.enabled === false ? (
+                        <ChevronDown size={14} />
+                      ) : (
+                        <ChevronUp size={14} />
+                      )}
+                    </Button>
+                    <Button
+                      size="icon"
+                      variant="ghost"
                       title="删除角色"
                       onClick={() =>
                         s.edit((v) => ({
@@ -323,43 +361,47 @@ export function Studio({
                     </Button>
                   </div>
                 </div>
-                <PromptEditor
-                  label="角色正面"
-                  value={c.prompt}
-                  onChange={(prompt) =>
-                    s.edit(
-                      (v) => ({
-                        ...v,
-                        characters: v.characters.map((x) =>
-                          x.id === c.id ? { ...x, prompt } : x,
-                        ),
-                      }),
-                      "role:" + c.id,
-                    )
-                  }
-                  translate={s.settings.translate}
-                  rows={3}
-                />
-                <details>
-                  <summary>角色负面</summary>
-                  <PromptEditor
-                    label="角色负面"
-                    value={c.negative}
-                    onChange={(negative) =>
-                      s.edit(
-                        (v) => ({
-                          ...v,
-                          characters: v.characters.map((x) =>
-                            x.id === c.id ? { ...x, negative } : x,
-                          ),
-                        }),
-                        "negative:" + c.id,
-                      )
-                    }
-                    translate={s.settings.translate}
-                    rows={2}
-                  />
-                </details>
+                {c.enabled !== false && (
+                  <>
+                    <PromptEditor
+                      label="角色正面"
+                      value={c.prompt}
+                      onChange={(prompt) =>
+                        s.edit(
+                          (v) => ({
+                            ...v,
+                            characters: v.characters.map((x) =>
+                              x.id === c.id ? { ...x, prompt } : x,
+                            ),
+                          }),
+                          "role:" + c.id,
+                        )
+                      }
+                      translate={s.settings.translate}
+                      rows={3}
+                    />
+                    <details>
+                      <summary>角色负面</summary>
+                      <PromptEditor
+                        label="角色负面"
+                        value={c.negative}
+                        onChange={(negative) =>
+                          s.edit(
+                            (v) => ({
+                              ...v,
+                              characters: v.characters.map((x) =>
+                                x.id === c.id ? { ...x, negative } : x,
+                              ),
+                            }),
+                            "negative:" + c.id,
+                          )
+                        }
+                        translate={s.settings.translate}
+                        rows={2}
+                      />
+                    </details>
+                  </>
+                )}
               </section>
             ))}
             {promptField("negative", "负面 Prompt")}
@@ -585,7 +627,11 @@ export function Studio({
                 const signature = (draft: StudioDraft) =>
                   JSON.stringify([
                     draft.model,
-                    draft.characters.map((c) => [c.id, c.center]),
+                    draft.characters.map((c) => [
+                      c.id,
+                      c.center,
+                      c.enabled !== false,
+                    ]),
                     draft.perModel[draft.model].useCoords,
                     draft.perModel[draft.model].width,
                     draft.perModel[draft.model].height,
