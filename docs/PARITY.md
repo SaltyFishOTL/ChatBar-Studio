@@ -1,6 +1,6 @@
 # 迁移对照与当前边界
 
-“已接入”表示存在端到端代码与界面入口，不等于真实 API 或跨浏览器验收通过。本次验证限于类型检查、生产构建和源代码对照；没有运行自动化测试或付费请求。
+“已接入”表示存在端到端代码与界面入口，不等于真实 API 或跨浏览器验收通过。图片隐私导出已通过类型检查、生产构建和 18 项获准的离线 Chromium 回归；其余功能仍以源码对照为主，没有运行付费请求。
 
 | 范围                       | Android 基线入口                           | 网页实现                                        | 状态 / 验证边界                                                                |
 | -------------------------- | ------------------------------------------ | ----------------------------------------------- | ------------------------------------------------------------------------------ |
@@ -26,7 +26,7 @@
 | 角色位置编辑               | NovelAiCharacterPositionDialog / PositionPolicy | CharacterPositionEditor / normalizePosition | 编号画布点按/拖动/键盘、百分比、均匀排列、AI 自动；V4.5 格心与 V5 自由坐标，共用请求规范化；待触摸验收 |
 | 图生图 / 局部重绘          | FocusedInpaint / MaskEncoder / Composer    | Guidance / raster.worker                        | 焦点、上下文、潜空间蒙版、Lanczos3 合成；像素对照待验收                        |
 | Precise / Vibe             | NovelAiImageGuidance / VibeEncoding        | Guidance / novelai                              | 模型限制、归一化、按需编码缓存与历史编码快照                                   |
-| PNG / 反推 / 静态编辑      | PngMetadataReader / ImageProcessing        | metadata / Tools                                | 选择性导入、候选反推、旋转、马赛克、去元数据                                   |
+| PNG / 反推 / 静态编辑      | PngMetadataReader / ImageProcessing        | metadata / Tools                                | 选择性导入、候选反推、旋转、马赛克；隐私导出统一 PNG，清除文件元数据及 RGB/alpha 最低位隐写，不附回生成参数                                   |
 | APNG 伪装 / 还原           | ApngDisguiseCodec                          | domain/apng / Tools                             | PNG/GIF 伪装，v1/v2 还原、帧时序；动态图片禁用静态编辑                         |
 | Enhance / Upscale          | ImagePostProcessing / UpscaleService       | postprocess / Tools                             | 请求参数、强度比例、结果保存、前后对比；真实调用待验证                         |
 | 历史                       | HistoryFolding / GalleryExport             | History / Preview / domain/history              | 分组、搜索、选择删除、导出、复现、Seed、参考图、应用撤销                       |
@@ -48,7 +48,7 @@
 ## 平台限制与尚未通过的关卡
 
 1. **直连未验证**：当前网络到官方 NovelAI 的匿名 OPTIONS 超时。不能认定服务器允许或拒绝 CORS。站点没有代理。用户配置自己的 HTTPS 地址可由浏览器直接使用。
-2. **浏览器验收未执行**：Chrome、Edge、Firefox、Safari、Android/iOS 的软键盘、触摸、下载、文件导入、PWA 均需按验收清单操作。
+2. **浏览器验收未全面执行**：图片隐私导入、马赛克/旋转、清理和下载已在桌面 Chromium 验证；Firefox、Safari、Android/iOS，以及其他界面、PWA 流程仍需按验收清单操作。
 3. **实时 API 验收未执行**：流式响应、限流、取消、结果未知、扣费、额度变化、Vibe 缓存复用、Enhance/Upscale 必须在明确授权后验证。
 4. **浏览器后台受限**：关闭、锁屏、系统回收后不保证任务继续。设计页面离开时会取消该页面的设计请求，重新打开显示中断状态。
 5. **视觉实现是响应式改编**：网页用可见按钮替代长按，中文注释通过测量层显示在对应原文下方，跟随换行/滚动；保留原生输入、选区和 IME。浏览器字体度量、缩放及软键盘需视觉验收，没有声称与 Android 像素一致。

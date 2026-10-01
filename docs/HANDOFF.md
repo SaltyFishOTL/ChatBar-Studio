@@ -19,6 +19,7 @@
 - 首页生成按钮旁显示 Anlas 与 V5 剩余额度/估算张数；前台每 30 秒、恢复联网/前台、每个生图批次及图像任务结束后刷新。旧请求隔离、查询失败标明旧余额，不把未知额度当成零。
 - 生成设置按 APP 拆成尺寸档、比例、1–4 张按钮；高级设置摘要展开 Steps/CFG 滑块、Sampler、随机 Seed。尺寸编辑器可交换宽高、预览最终比例，确认一次保存、取消不写入。角色位置改为独立编号画布、AI 自动/自定义、百分比、均匀排列；V4.5 网格吸附、V5 自由位置，与请求共用规范化规则。新组件在 `ui/components/GenerationControls.tsx`、`SizeEditor.tsx`、`CharacterPositionEditor.tsx`，规则在 `domain/studioControls.ts`。`GenerationSettings.sizeChoice` 仅保存可选界面选择状态；旧草稿按宽高识别，无存储迁移。
 - 图像引导编辑、聚焦重绘、Precise/Vibe、元数据、Enhance/Upscale、APNG、ZIP 备份。
+- 图片隐私导出由 `domain/imagePrivacy.ts` 统一负责：去元数据处理当前结果或原图，马赛克/旋转完成不再附回原文元数据；整图 RGB/alpha 最低位归一化后直接编码新 PNG，清除透明像素 RGB，保留尺寸和透明端点。动画拒绝静态清理；失败保留旧结果并报错。旧版结果需重新处理，APNG 伪装不等于清理。
 - PWA、静态资源服务器、Cloud Run Dockerfile。
 - PWA 后台轮询只检查版本，不发送 SKIP_WAITING；useRegisterSW.onNeedReload 覆盖默认刷新，平台/其他标签页接管不触发导航。仅用户点击「刷新更新」后等待草稿与设置落盘、目标 /sw.js 接管，再单次刷新；生图、AI 设计和未保存图片阻止更新，激活失败或超时保留当前页。更新期间暂禁页面操作。侧栏保留版本时间与检查更新，version.json 不加入离线缓存。入口为 ui/App.tsx、ui/studioUpdate.ts、store.flushSaves。普通刷新可能仍打开旧离线版本；不要仅凭构建成功声称预览或线上已更新。后台不闪屏与跨标签页行为仍待浏览器验收。
 - 保留页面布局，主题色、圆角、表面与字体层级对齐 `ChatBarTheme.kt`；品牌直接使用 Android 原图，功能图标使用同源 Lucide。手机图标按钮保留可见入口并扩大触摸区域。
@@ -27,7 +28,7 @@
 - 头像生成放在编辑框上传按钮旁，缺 Token/测试词时打开设置并聚焦对应字段，保留编辑内容。生成/上传头像先留在编辑器，保存时与画风卡事务提交；取消、关闭、版本冲突或删除均不会覆盖旧头像。
 - 独立公开 GitHub 仓库：`https://github.com/SaltyFishOTL/ChatBar-Studio`，关联原项目 `SaltyFishOTL/ChatChatBar`。初始开发分支 `codex/studio-web`，发布主分支 `main`；首版 `v0.1.0` 按预览版交付。发布规范见 `.agents/skills/studio-web-release/SKILL.md`，发布说明见 `docs/RELEASE-v0.1.0.md`，网页包由 `tools/package_release.py` 生成到忽略目录 `release/`。
 - 用户已选择 GPLv3（`GPL-3.0-only`）。根目录 `LICENSE` 为官方全文；第三方依赖与数据保留各自许可，边界在 `THIRD_PARTY_NOTICES.md`。README、网页侧栏和仓库主页关联 ChatChatBar；不改变 Android 仓库的许可或代码。
-- 类型检查和生产构建通过。未运行自动化测试；不能将代码存在等同于行为验收通过。
+- 类型检查和生产构建通过。图片隐私修复已通过 18 项获准的离线 Chromium 回归，覆盖四种 stealth 格式及损坏头、透明度、PNG/WebP/JPEG、动画/损坏输入拒绝、真实马赛克/旋转/去元数据按钮和下载字节；其他功能不能由此推定验收通过。
 
 ## 已核对的关键规则
 
@@ -40,7 +41,7 @@
 ## 仍需外部条件的验收
 
 1. 当前网络对 NovelAI 匿名 OPTIONS 请求超时，官方直连尚未验证。设置页提供匿名只读诊断。
-2. 没有实际运行浏览器交互、跨平台验收、故障注入或付费 API。用户计划要求额外测试授权，不能擅自执行。
+2. 图片隐私已在 Chromium 用合成图片验证；其余浏览器交互、跨平台验收、故障注入及付费 API 尚未全面执行，仍需相应测试授权。
 3. 未指定 Cloud 项目/区域；本机没有 gcloud。尚未发布 AI Studio / Cloud Run，部署步骤见 DEPLOY.md。
 4. 当前底层图片采取保守保留策略，无自动孤儿清扫。大型 ZIP 有内存和容量限制，见 PARITY.md。
 5. 基线翻译服务只有离线词典路径。远程同意状态保留，未虚构远程翻译服务。
@@ -52,7 +53,7 @@
 - 用户授权类型检查、生产构建和本计划实施。
 - 当前视觉与模型检索调整已通过 `npm run build`（包含 TypeScript 检查）；未进行浏览器操作或真实模型列表请求验收。
 - 画风筛选与头像交互调整已通过类型检查及生产构建，未运行自动化/付费调用。HTTP 模型开关因可能明文传输 Key 被自动审批拒绝，已向用户请求精确授权；当前仍仅允许 HTTPS，不得绕过拒绝。
-- 未授权自动化测试、设备诊断或真实付费 API 调用。不可擅自执行。
+- 用户已授权本次图片隐私修复的离线回归；未授权其他自动化测试、设备诊断或真实付费 API 调用。
 - 新项目位于原工作区的相邻目录；必要写入通过受控提权，用户已明确授权目标路径。
 - 不能用云端代理绕过 CORS；用户密钥只在浏览器处理。
 - 发布必须确认实际 Google/GitHub 账号环境；未取得部署网址前不能称已上线。

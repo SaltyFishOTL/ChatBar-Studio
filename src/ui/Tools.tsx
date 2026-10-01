@@ -20,15 +20,12 @@ import {
 } from "./components/ui";
 import { assetBlob, putAsset, saveToolResult, state } from "../data/db";
 import {
-  canvasBlob,
   bytesOf,
   canvas,
   download,
   shareImage,
-  normalizeImage,
   dimensions,
   pngAnimated,
-  preserveText,
 } from "../domain/images";
 import {
   pngMetadata,
@@ -38,6 +35,7 @@ import {
   type MetadataSections,
 } from "../domain/metadata";
 import { disguise, restoreDisguise, inspectDisguise } from "../domain/apng";
+import { privacyCanvasBlob, webpAnimated } from "../domain/imagePrivacy";
 import {
   enhance,
   upscale,
@@ -115,7 +113,7 @@ export function ToolsPage({
     setStages([]);
     const bytes = await bytesOf(blob),
       isGif = String.fromCharCode(...bytes.subarray(0, 3)) === "GIF";
-    setAnimated(isGif || pngAnimated(bytes));
+    setAnimated(isGif || pngAnimated(bytes) || webpAnimated(bytes));
     try {
       inspectDisguise(bytes);
       setIsDisguise(true);
@@ -390,18 +388,9 @@ export function ToolsPage({
                 <Button
                   variant="secondary"
                   disabled={animated || localBusy}
-                  onClick={() =>
-                    process(async () => {
-                      try {
-                        return await stripMetadata(source);
-                      } catch (e) {
-                        if (source.type === "image/png") throw e;
-                        return normalizeImage(source);
-                      }
-                    })
-                  }
+                  onClick={() => process(() => stripMetadata(result || source))}
                 >
-                  去除元数据，保留画面
+                  去除元数据与像素隐写
                 </Button>
                 <Button
                   variant="secondary"
@@ -444,7 +433,9 @@ export function ToolsPage({
                   </p>
                 )}
                 <p className="muted">
-                  伪装还原保留真实帧内容；不会恢复原 JPEG/GIF 编码字节。
+                  去元数据或编辑完成均导出 PNG
+                  副本，清除文件元数据和像素最低位隐写；颜色与透明度可能有极轻微变化，原图保留。旧版结果需重新清理。APNG
+                  伪装不属于去元数据操作；伪装还原不会恢复原 JPEG/GIF 编码字节。
                 </p>
               </div>
             )}
@@ -679,12 +670,15 @@ function MosaicEditor({
   const s = useStudio(),
     ref = useRef<HTMLCanvasElement>(null),
     [brush, setBrush] = useState(45),
+    [ready, setReady] = useState(false),
+    [saving, setSaving] = useState(false),
     [version, setVersion] = useState(0),
     past = useRef<ImageData[]>([]),
     future = useRef<ImageData[]>([]),
     drawing = useRef(false);
   useEffect(() => {
     let active = true;
+    setReady(false);
     createImageBitmap(source)
       .then((b) => {
         if (active && ref.current) {
@@ -692,6 +686,7 @@ function MosaicEditor({
           c.width = b.width;
           c.height = b.height;
           c.getContext("2d")!.drawImage(b, 0, 0);
+          setReady(true);
         }
         b.close();
       })
@@ -710,7 +705,7 @@ function MosaicEditor({
     setVersion((v) => v + 1);
   };
   const paint = (e: PointerEvent) => {
-    if (!drawing.current) return;
+    if (!ready || saving || !drawing.current) return;
     const c = ref.current!,
       ctx = c.getContext("2d")!,
       r = c.getBoundingClientRect(),
@@ -766,20 +761,21 @@ function MosaicEditor({
         />
         <Button
           variant="ghost"
-          disabled={!past.current.length}
+          disabled={!ready || saving || !past.current.length}
           onClick={() => restore(past.current, future.current)}
         >
           <Undo2 size={16} />
         </Button>
         <Button
           variant="ghost"
-          disabled={!future.current.length}
+          disabled={!ready || saving || !future.current.length}
           onClick={() => restore(future.current, past.current)}
         >
           <Redo2 size={16} />
         </Button>
         <Button
           variant="secondary"
+          disabled={!ready || saving}
           onClick={() => {
             remember();
             const c = ref.current!,
@@ -797,10 +793,14 @@ function MosaicEditor({
           旋转
         </Button>
       </div>
+      <p className="muted">
+        完成时自动清除元数据与像素最低位隐写，导出 PNG 副本；原图保留。
+      </p>
       <div className="mosaic-stage">
         <canvas
           ref={ref}
           onPointerDown={(e) => {
+            if (!ready || saving) return;
             e.currentTarget.setPointerCapture(e.pointerId);
             remember();
             drawing.current = true;
@@ -820,12 +820,18 @@ function MosaicEditor({
           取消
         </Button>
         <Button
-          onClick={() =>
-            canvasBlob(ref.current!)
-              .then((b) => preserveText(source, b))
-              .then(onDone)
-              .catch(s.fail)
-          }
+          disabled={!ready || saving}
+          onClick={() => {
+            if (!ready || saving || !ref.current) return;
+            setSaving(true);
+            try {
+              onDone(privacyCanvasBlob(ref.current));
+            } catch (error) {
+              s.fail(error);
+            } finally {
+              setSaving(false);
+            }
+          }}
         >
           完成
         </Button>

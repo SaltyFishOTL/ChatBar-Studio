@@ -8,6 +8,7 @@ import {
   normalizeImage,
 } from "./images";
 import { putAsset } from "../data/db";
+import { stripImageMetadata } from "./imagePrivacy";
 import type { StudioDraft } from "./types";
 export async function pngMetadata(
   blob: Blob,
@@ -195,10 +196,5 @@ export async function attachRecipe(blob: Blob, d: StudioDraft, seed: number) {
   ]);
 }
 export async function stripMetadata(blob: Blob) {
-  const chunks = parsePng(await bytesOf(blob));
-  if (chunks.some((c) => c.type === "acTL"))
-    throw Error("动态 PNG 不支持静态去元数据");
-  return encodePng(
-    chunks.filter((c) => !["tEXt", "zTXt", "iTXt", "eXIf"].includes(c.type)),
-  );
+  return stripImageMetadata(blob);
 }
