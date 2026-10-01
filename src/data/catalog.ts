@@ -100,7 +100,8 @@ export const countTokens = (d: StudioDraft, signal?: AbortSignal) =>
 export const translateLocal = (
   terms: { lookup: string; natural: boolean }[],
   signal?: AbortSignal,
-) => rpc<Record<string, string>>("translate", terms, undefined, signal);
+  partial?: (value: Record<string, string>) => void,
+) => rpc<Record<string, string>>("translate", terms, partial, signal);
 export const researchTags = (
   queries: string[],
   signal?: AbortSignal,

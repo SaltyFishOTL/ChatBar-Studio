@@ -16,13 +16,13 @@ export function PromptAnnotations({
   terms,
   annotations,
 }: {
-  input: RefObject<HTMLTextAreaElement | null>;
+  input: RefObject<HTMLElement | null>;
   value: string;
   terms: Term[];
   annotations: Record<string, string>;
 }) {
-  const mirror = useRef<HTMLDivElement>(null);
-  const layer = useRef<HTMLDivElement>(null);
+  const mirror = useRef<HTMLSpanElement>(null);
+  const layer = useRef<HTMLSpanElement>(null);
   const [labels, setLabels] = useState<Label[]>([]);
   useLayoutEffect(() => {
     const textarea = input.current,
@@ -64,7 +64,7 @@ export function PromptAnnotations({
       const canvas = document.createElement("canvas");
       const ctx = canvas.getContext("2d");
       if (!ctx) return;
-      ctx.font = `9px ${style.fontFamily}`;
+      ctx.font = `10px ${style.fontFamily}`;
       const next: Label[] = [];
       for (const term of terms) {
         let remaining = annotations[term.lookup] || "";
@@ -123,9 +123,9 @@ export function PromptAnnotations({
   }, [input, value, terms, annotations]);
   return (
     <>
-      <div ref={mirror} className="prompt-measure" aria-hidden="true" />
-      <div className="prompt-annotation-clip" aria-hidden="true">
-        <div ref={layer} className="prompt-annotation-layer">
+      <span ref={mirror} className="prompt-measure" aria-hidden="true" />
+      <span className="prompt-annotation-clip" aria-hidden="true">
+        <span ref={layer} className="prompt-annotation-layer">
           {labels.map((label, i) => (
             <span
               key={i}
@@ -136,8 +136,8 @@ export function PromptAnnotations({
               {label.fill && <span className="prompt-annotation-line" />}
             </span>
           ))}
-        </div>
-      </div>
+        </span>
+      </span>
     </>
   );
 }

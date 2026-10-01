@@ -193,10 +193,21 @@ async function meaning(raw: string) {
   return value;
 }
 const chinese = (s: string) => /[\u3400-\u9FFF\uF900-\uFAFF]/.test(s);
-async function annotation(raw: string, natural: boolean) {
+async function annotation(
+  raw: string,
+  natural: boolean,
+  warnings: Set<string>,
+) {
   if (!natural) {
-    const tag = await exact("danbooru", raw.replace(/\s+/g, "_").toLowerCase());
-    if (tag?.translation && chinese(tag.translation)) return tag.translation;
+    try {
+      const tag = await exact(
+        "danbooru",
+        raw.replace(/\s+/g, "_").toLowerCase(),
+      );
+      if (tag?.translation && chinese(tag.translation)) return tag.translation;
+    } catch (error) {
+      warnings.add(`Tag 词库查询失败：${String(error)}`);
+    }
   }
   const full = await meaning(raw);
   if (chinese(full)) return full;
@@ -400,9 +411,30 @@ self.onmessage = async ({ data }) => {
       );
     } else if (type === "translate") {
       const result: Record<string, string> = {};
-      for (const term of payload as { lookup: string; natural: boolean }[]) {
+      const failures = new Set<string>();
+      const unique = new Map(
+        (payload as { lookup: string; natural: boolean }[]).map((term) => [
+          term.lookup,
+          term,
+        ]),
+      );
+      for (const term of unique.values()) {
         if (cancelled.has(id)) return;
-        result[term.lookup] = await annotation(term.lookup, term.natural);
+        try {
+          result[term.lookup] = await annotation(
+            term.lookup,
+            term.natural,
+            failures,
+          );
+        } catch (error) {
+          failures.add(String(error));
+        }
+      }
+      if (cancelled.has(id)) return;
+      // Keep successful exact translations visible even if another lookup fails.
+      if (failures.size) {
+        send(result, false);
+        throw Error([...failures].join("；"));
       }
       send(result);
     } else if (type === "tokens") {

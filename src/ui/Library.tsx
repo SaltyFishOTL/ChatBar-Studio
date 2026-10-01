@@ -1,3 +1,4 @@
+import { PromptText } from "./components/PromptText";
 import { useEffect, useState } from "react";
 import { Search, Copy, Plus } from "lucide-react";
 import { useStudio } from "./store";
@@ -173,7 +174,7 @@ export function Library() {
                 {e.title}
                 <small> · {e.category}</small>
               </summary>
-              <pre className="prompt-text">{e.prompt}</pre>
+              <PromptText value={e.prompt} />
               <Button
                 variant="secondary"
                 onClick={() =>

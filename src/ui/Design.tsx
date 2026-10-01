@@ -1,3 +1,4 @@
+import { PromptText, PromptFields } from "./components/PromptText";
 import { useEffect, useRef, useState } from "react";
 import {
   Plus,
@@ -351,7 +352,17 @@ export function Design({
                 {turn.attachment && (
                   <details>
                     <summary>已附加工作室提示词快照</summary>
-                    <pre>{JSON.stringify(turn.attachment, null, 2)}</pre>
+                    <PromptFields
+                      fields={[
+                        ["基础 Prompt", turn.attachment.baseCaption],
+                        ...turn.attachment.characters.map(
+                          (c, i): [string, string] => [
+                            `角色 ${i + 1}`,
+                            c.caption,
+                          ],
+                        ),
+                      ]}
+                    />
                   </details>
                 )}
                 {turn.image && (
@@ -374,11 +385,11 @@ export function Design({
                     {turn.natural ? "自然语言" : "结构化 Tag"}
                   </span>
                   <h3>基础 Prompt</h3>
-                  <p className="prompt-text">{turn.reply.baseCaption}</p>
+                  <PromptText value={turn.reply.baseCaption} />
                   {turn.reply.characters.map((c, j) => (
                     <div key={j}>
                       <h4>角色 {j + 1}</h4>
-                      <p className="prompt-text">{c.caption}</p>
+                      <PromptText value={c.caption} />
                     </div>
                   ))}
                   <div className="actions">

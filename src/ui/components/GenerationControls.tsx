@@ -27,7 +27,7 @@ const samplers = [
   ["ddim_v3", "DDIM"],
 ];
 
-export function GenerationControls({ cost }: { cost: string }) {
+export function GenerationControls() {
   const s = useStudio(),
     d = s.draft,
     g = d.perModel[d.model],
@@ -295,7 +295,6 @@ export function GenerationControls({ cost }: { cost: string }) {
           : d.guidance.action === "infill"
             ? "局部重绘"
             : "图生图"}{" "}
-        · {cost}
       </p>
       {d.guidance.action !== "generate" && (
         <p className="muted">

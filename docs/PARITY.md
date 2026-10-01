@@ -15,14 +15,14 @@
 | 设计对话、分支、重试       | NovelAiDesignConversationModels            | Design / IndexedDB                              | 独立对话、首轮不隐式读取工作室                                                 |
 | 原始提示词                 | PromptTemplates.kt                         | public/data/prompts.json / domain/prompts       | 常量原文导出；动态构造迁移，基线留档                                           |
 | Tag 搜索 / 预测            | RankedTagIndex / TagCompletion             | catalog.worker / PromptEditor / Library         | 全量索引、增量结果、排序去重、光标前片段替换；设置画风测试词/默认负面使用同一编辑器 |
-| 离线翻译                   | PromptTranslation / WordDictionary         | catalog.worker                                  | Danbooru、完整 ECDICT、原有覆盖词表；无示例库替代                              |
+| 离线翻译                   | PromptTranslation / WordDictionary         | catalog.worker                                  | 编辑/只读提示词共用注释层与全局开关；Danbooru 优先、ECDICT 补充；14 项离线辅助界面回归通过，使用合成词库，未据此声称全词库/跨浏览器验收                              |
 | 远程翻译                   | 冻结基线无远程翻译调用路径                 | 保留同意状态字段，当前只走本地翻译              | 未擅自添加远程服务；若旧版本另有入口，需提供版本后对照                         |
 | 法典                       | NovelAiCodexCatalog                        | 完整 codex.json / Worker / Library              | 原文浏览、中文 n-gram 召回、首轮/修改轮区分                                    |
 | 分段、复制粘贴、权重       | StudioModels / PromptClipboard             | promptPolicy / Studio / PromptEditor            | 基础、补充、画风、角色正负面、基础负面；全屏确认写回                           |
 | 角色折叠/停用              | NovelAiCharacterPromptDraft.enabled / activeCharacters | Studio / promptPolicy.activeCharacters | 折叠保留内容但暂停参与生图；展开恢复；草稿/历史/撤销/备份保留状态，旧数据默认启用 |
-| Token 计数                 | PromptTokenCounter / V5TextPolicy          | tokenizer Worker / normalizedPrompt             | T5、Qwen 数据与算法迁入；与请求共用规范化                                      |
+| Token 计数                 | PromptTokenCounter / V5TextPolicy          | tokenizer Worker / normalizedPrompt             | T5/Qwen 与请求共用规范化；按钮上方固定双进度条，512/1471 上限，85% 警告及超限提示；UI 回归用合成分词夹具                                      |
 | 生图 / 批量 / 连续 / 预览  | NovelAiImageService / StreamFrameDecoder   | novelai / store                                 | MsgPack 分帧、仅 429 自动重试、启动快照、整批事务                              |
-| 额度与费用                 | NovelAiAccountService                      | novelai / Settings / Studio                     | 生成按钮旁显示积分、V5 额度和估算张数；30 秒/前台/联网/批次/任务结束刷新；实际余额待验证 |
+| 额度与费用                 | NovelAiAccountService                      | novelai / Settings / Studio                     | 按钮显示实时费用估算，旁边保留积分和 V5 额度；30 秒/前台/联网/任务结束刷新；费用随张数变化与固定栏已离线验证，实际账户/付费请求未验证 |
 | 生成设置与尺寸交互         | GenerationSettingsSection / NovelAiStudioSizeDialog | GenerationControls / SizeEditor / studioControls | 尺寸档、比例、数量快捷按钮；高级参数摘要与滑块；自定义宽高、交换、最终比例预览、确认/取消，待跨浏览器交互验收 |
 | 角色位置编辑               | NovelAiCharacterPositionDialog / PositionPolicy | CharacterPositionEditor / normalizePosition | 编号画布点按/拖动/键盘、百分比、均匀排列、AI 自动；V4.5 格心与 V5 自由坐标，共用请求规范化；待触摸验收 |
 | 图生图 / 局部重绘          | FocusedInpaint / MaskEncoder / Composer    | Guidance / raster.worker                        | 焦点、上下文、潜空间蒙版、Lanczos3 合成；像素对照待验收                        |

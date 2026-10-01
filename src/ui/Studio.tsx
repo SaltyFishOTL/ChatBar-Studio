@@ -1,3 +1,5 @@
+import { PromptTokenBudget } from "./components/PromptTokenBudget";
+import { PromptText } from "./components/PromptText";
 import { useEffect, useRef, useState } from "react";
 import {
   Play,
@@ -59,6 +61,8 @@ export function Studio({
       negative: number;
     } | null>(null),
     [tokenError, setTokenError] = useState(""),
+    [tokenLoading, setTokenLoading] = useState(true),
+    [tokenModel, setTokenModel] = useState(d.model),
     [selected, setSelected] = useState<string | null>(null),
     [preview, setPreview] = useState(false),
     [paste, setPaste] = useState<string | null>(null),
@@ -92,15 +96,23 @@ export function Studio({
   }, []);
   useEffect(() => {
     const abort = new AbortController();
+    setTokenLoading(true);
+    setTokenError("");
     const timer = setTimeout(
       () =>
         countTokens(d, abort.signal)
           .then((v) => {
+            if (abort.signal.aborted) return;
             setTokens(v);
+            setTokenModel(d.model);
+            setTokenLoading(false);
             setTokenError("");
           })
           .catch((e) => {
-            if (!abort.signal.aborted) setTokenError(String(e));
+            if (!abort.signal.aborted) {
+              setTokenError(String(e));
+              setTokenLoading(false);
+            }
           }),
       180,
     );
@@ -148,7 +160,11 @@ export function Studio({
           aria-hidden="true"
         />
         <span>{label}</span>
-        {field !== "base" && d[field] && <small>{d[field].slice(0, 65)}</small>}
+        {field !== "base" && d[field] && (
+          <small>
+            <PromptText value={d[field].slice(0, 65)} />
+          </small>
+        )}
       </summary>
       <PromptEditor
         label={label}
@@ -190,7 +206,9 @@ export function Studio({
                   <h2>提示词</h2>
                   <div className="actions compact">
                     <Button
-                      size="icon"
+                      size="sm"
+                      aria-label="中文注释"
+                      aria-pressed={s.settings.translate}
                       variant={s.settings.translate ? "secondary" : "ghost"}
                       title="中文注释"
                       onClick={() =>
@@ -198,6 +216,7 @@ export function Studio({
                       }
                     >
                       <Languages size={16} />
+                      实时翻译
                     </Button>
                     <Button
                       size="icon"
@@ -425,18 +444,6 @@ export function Studio({
                 ))}
                 {promptField("negative", "负面 Prompt")}
                 <div className="token-row">
-                  <span
-                    className={
-                      tokens && tokens.positive > MODELS[d.model].tokens
-                        ? "warning"
-                        : ""
-                    }
-                  >
-                    正面 {tokens?.positive ?? "…"}/{MODELS[d.model].tokens}
-                  </span>
-                  <span>
-                    负面 {tokens?.negative ?? "…"}/{MODELS[d.model].tokens}
-                  </span>
                   <Button
                     variant="ghost"
                     size="sm"
@@ -455,10 +462,9 @@ export function Studio({
                     清空提示词
                   </Button>
                 </div>
-                {tokenError && <small className="error">{tokenError}</small>}
               </section>
             </div>
-            <GenerationControls cost={cost} />
+            <GenerationControls />
           </div>
           <div ref={generationBar} className="generation-bar">
             <div>
@@ -470,7 +476,7 @@ export function Studio({
               <small>
                 {s.busy
                   ? "可继续编辑提示词；当前任务使用启动时快照"
-                  : `${sizeLabel} · ${cost}`}
+                  : sizeLabel}
               </small>
             </div>
             <div className="generation-actions">
@@ -513,15 +519,36 @@ export function Studio({
                 <RefreshCw size={16} />
               </Button>
               {s.busy ? (
-                <Button variant="destructive" onClick={s.stop}>
-                  <Square size={16} />
-                  停止
-                </Button>
+                <div className="generation-submit">
+                  <PromptTokenBudget
+                    tokens={tokenModel === d.model ? tokens : null}
+                    limit={MODELS[d.model].tokens}
+                    loading={tokenLoading}
+                    error={tokenError}
+                  />
+                  <Button variant="destructive" onClick={s.stop}>
+                    <Square size={16} />
+                    停止
+                  </Button>
+                </div>
               ) : (
-                <Button onClick={s.run}>
-                  <Play size={17} />
-                  生成图片
-                </Button>
+                <div className="generation-submit">
+                  <PromptTokenBudget
+                    tokens={tokenModel === d.model ? tokens : null}
+                    limit={MODELS[d.model].tokens}
+                    loading={tokenLoading}
+                    error={tokenError}
+                  />
+                  <Button onClick={s.run} className="generate-button">
+                    <span>
+                      <Play size={17} />
+                      生成图片
+                    </span>
+                    <span className="generation-cost">
+                      {cost || "费用待计算"}
+                    </span>
+                  </Button>
+                </div>
               )}
             </div>
           </div>
@@ -733,10 +760,12 @@ export function Studio({
         onClose={() => setPaste(null)}
         title="粘贴分段提示词"
       >
-        <textarea
+        <PromptEditor
+          label="粘贴分段提示词"
           rows={12}
           value={paste || ""}
-          onChange={(e) => setPaste(e.target.value)}
+          onChange={setPaste}
+          translate={s.settings.translate}
           placeholder="【基础】…"
         />
         <div className="actions">

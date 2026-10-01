@@ -202,7 +202,7 @@ try {
     "desktop autosize remains on mobile",
   );
   await page
-    .getByRole("button", { name: "生成图片", exact: true })
+    .getByRole("button", { name: /生成图片/ })
     .isVisible()
     .then((v) => assert(v));
   passed.push("mobile reflow keeps generation and clears desktop autosize");

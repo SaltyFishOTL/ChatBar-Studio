@@ -1,14 +1,11 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { Maximize2, Languages } from "lucide-react";
+import { Maximize2 } from "lucide-react";
 import { Modal, Button } from "./ui";
-import { searchTags, translateLocal } from "../../data/catalog";
-import {
-  insertCandidate,
-  segments,
-  activeFragment,
-} from "../../domain/promptPolicy";
+import { searchTags } from "../../data/catalog";
+import { insertCandidate, activeFragment } from "../../domain/promptPolicy";
 import type { Candidate } from "../../domain/types";
 import { PromptAnnotations } from "./PromptAnnotations";
+import { usePromptTranslation } from "./usePromptTranslation";
 type Props = {
   label: string;
   value: string;
@@ -37,7 +34,6 @@ export function PromptEditor({
     [suggestions, setSuggestions] = useState<Candidate[]>([]),
     [loading, setLoading] = useState(false),
     [error, setError] = useState(""),
-    [annotations, setAnnotations] = useState<Record<string, string>>({}),
     [limit, setLimit] = useState(40),
     [session, setSession] = useState<{
       original: string;
@@ -118,26 +114,6 @@ export function PromptEditor({
     return () => abort.abort();
   }, [query]);
   useEffect(() => {
-    if (!translate) {
-      setAnnotations({});
-      return;
-    }
-    const abort = new AbortController(),
-      timer = setTimeout(
-        () =>
-          translateLocal(segments(value), abort.signal)
-            .then(setAnnotations)
-            .catch((e) => {
-              if (!abort.signal.aborted) setError(String(e));
-            }),
-        250,
-      );
-    return () => {
-      clearTimeout(timer);
-      abort.abort();
-    };
-  }, [value, translate]);
-  useEffect(() => {
     if (session && session.original !== value) setSession(null);
   }, [value]);
   const select = (c: Candidate) => {
@@ -153,7 +129,11 @@ export function PromptEditor({
       setCursor(result.cursor);
     });
   };
-  const tokens = segments(value);
+  const {
+    terms: tokens,
+    annotations,
+    error: translationError,
+  } = usePromptTranslation(value, translate);
   return (
     <div className="prompt-editor">
       <div className="field-heading">
@@ -206,6 +186,11 @@ export function PromptEditor({
           />
         )}
       </div>
+      {translationError && (
+        <p className="error" role="status">
+          {translationError}
+        </p>
+      )}
       {error && !(focused && query) && (
         <p className="error" role="alert">
           {error}

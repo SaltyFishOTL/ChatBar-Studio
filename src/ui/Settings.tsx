@@ -223,14 +223,16 @@ export function SettingsPage({
           label="角色参考文本"
           hint="每行：名称 | 角色提示词；只作为候选参考，不会自动增加画面人物"
         >
-          <textarea
+          <PromptEditor
+            label="角色参考提示词"
+            translate={s.settings.translate}
             rows={4}
             value={referencesText}
-            onChange={(e) => {
-              setReferencesText(e.target.value);
+            onChange={(value) => {
+              setReferencesText(value);
               patch(
                 "characterReferences",
-                e.target.value.split("\n").map((line) => {
+                value.split("\n").map((line) => {
                   const i = line.indexOf("|");
                   return {
                     name: i < 0 ? line : line.slice(0, i).trim(),

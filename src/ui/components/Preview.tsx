@@ -1,3 +1,4 @@
+import { PromptFields } from "./PromptText";
 import { useState } from "react";
 import {
   ChevronLeft,
@@ -215,22 +216,45 @@ export function Preview({
         </Button>
       </div>
       {showMeta && (
-        <pre className="json-view">
-          {JSON.stringify(
-            {
-              seed: image.seed,
-              model: image.recipe.draft.model,
-              style: image.recipe.draft.style,
-              base: image.recipe.draft.base,
-              extra: image.recipe.draft.extra,
-              negative: image.recipe.draft.negative,
-              characters: image.recipe.draft.characters,
-              settings: image.recipe.draft.perModel[image.recipe.draft.model],
-            },
-            null,
-            2,
-          )}
-        </pre>
+        <>
+          <PromptFields
+            fields={[
+              ["画风", image.recipe.draft.style],
+              ["基础 Prompt", image.recipe.draft.base],
+              ["补充 Prompt", image.recipe.draft.extra],
+              ["负面 Prompt", image.recipe.draft.negative],
+              ...image.recipe.draft.characters.flatMap(
+                (c, i): [string, string][] => [
+                  [
+                    `角色 ${i + 1}${c.enabled === false ? " · 已停用" : ""}`,
+                    c.prompt,
+                  ],
+                  [`角色 ${i + 1} 负面`, c.negative],
+                ],
+              ),
+            ]}
+          />
+          <details>
+            <summary>原始配方</summary>
+            <pre className="json-view">
+              {JSON.stringify(
+                {
+                  seed: image.seed,
+                  model: image.recipe.draft.model,
+                  style: image.recipe.draft.style,
+                  base: image.recipe.draft.base,
+                  extra: image.recipe.draft.extra,
+                  negative: image.recipe.draft.negative,
+                  characters: image.recipe.draft.characters,
+                  settings:
+                    image.recipe.draft.perModel[image.recipe.draft.model],
+                },
+                null,
+                2,
+              )}
+            </pre>
+          </details>
+        </>
       )}
     </Modal>
   );

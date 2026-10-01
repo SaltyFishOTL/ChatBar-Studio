@@ -1,3 +1,4 @@
+import { PromptText } from "./PromptText";
 import {
   useMemo,
   useRef,
@@ -181,6 +182,9 @@ export function CharacterPositionEditor({
             ))}
           </select>
         </Field>
+        <PromptText
+          value={characters.find((c) => c.id === selected)?.prompt || ""}
+        />
         <div className="position-preview-frame">
           {size && (
             <div

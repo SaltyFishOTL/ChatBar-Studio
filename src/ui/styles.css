@@ -2783,3 +2783,134 @@ pre {
     height: 18px;
   }
 }
+
+/* Shared raw-source translation surfaces: editors and read-only prompt views. */
+.prompt-annotation {
+  font-size: 10px;
+  line-height: 12px;
+  opacity: 1;
+}
+.prompt-display {
+  display: block;
+  position: relative;
+  min-width: 0;
+  text-align: left;
+}
+.prompt-display-source {
+  display: block;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 13px;
+  line-height: 1.9;
+}
+.prompt-display.with-translation .prompt-display-source {
+  line-height: 32px;
+  padding-bottom: 12px;
+}
+.prompt-display .prompt-annotation-clip {
+  inset: 0;
+}
+.translation-error {
+  display: block;
+  color: var(--danger);
+  font-size: 11px;
+}
+.prompt-fields h4 {
+  margin: 12px 0 4px;
+}
+.style-info p:has(.prompt-display) {
+  height: auto;
+  max-height: 120px;
+  overflow: auto;
+}
+.prompt-section summary small:has(.prompt-display) {
+  white-space: normal;
+}
+.generation-submit {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  width: 100%;
+}
+.generation-submit > .button {
+  width: 100%;
+}
+.generate-button {
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.generate-button > span:first-child {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.generation-cost {
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+.prompt-token-budget {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  width: 100%;
+}
+.prompt-token-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+}
+.prompt-token-row > span:first-child {
+  width: 14px;
+}
+.prompt-token-track {
+  flex: 1;
+  height: 4px;
+  border-radius: 99px;
+  background: var(--line);
+  overflow: hidden;
+}
+.prompt-token-track > span {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+}
+.prompt-token-count {
+  min-width: 76px;
+  text-align: right;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.prompt-token-row.near .prompt-token-track > span {
+  background: var(--warning);
+}
+.prompt-token-row.over .prompt-token-track > span {
+  background: var(--danger);
+}
+.prompt-token-row.over .prompt-token-count {
+  color: var(--danger);
+}
+@media (min-width: 681px) and (max-width: 1099px) {
+  .generation-submit {
+    width: 220px;
+  }
+}
+@media (max-width: 680px) {
+  .generation-bar > .generation-actions {
+    flex-wrap: wrap;
+  }
+}
+
+.prompt-panel > .section-heading {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.prompt-panel > .section-heading h2 {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+.prompt-panel > .section-heading .actions {
+  flex-wrap: wrap;
+}

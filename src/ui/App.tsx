@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Image,
+  Languages,
   Palette,
   Bot,
   History as HistoryIcon,
@@ -230,6 +231,18 @@ export function App() {
         </button>
         <div className="sidebar-label">WORKSPACE</div>
         <nav>
+          <button
+            className={`nav-item ${s.settings.translate ? "active" : ""}`}
+            aria-label="提示词实时翻译"
+            title="提示词实时翻译"
+            aria-pressed={s.settings.translate}
+            onClick={() =>
+              s.configure((v) => ({ ...v, translate: !v.translate }))
+            }
+          >
+            <Languages size={20} />
+            <span>实时翻译</span>
+          </button>
           {pages.map(([id, name, Icon]) => (
             <button
               key={id}

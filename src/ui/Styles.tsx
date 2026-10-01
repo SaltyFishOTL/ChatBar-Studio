@@ -1,3 +1,4 @@
+import { PromptText } from "./components/PromptText";
 import { useEffect, useRef, useState } from "react";
 import {
   Plus,
@@ -262,7 +263,9 @@ export function Styles({
                     : "无独立负面词"}
                 </small>
               </div>
-              <p>{card.prompt}</p>
+              <p>
+                <PromptText value={card.prompt} />
+              </p>
               {s.support[card.id] &&
                 s.support[card.id] !== "BOTH" &&
                 s.support[card.id] !==

@@ -1,3 +1,4 @@
+import { PromptText, PromptFields } from "./components/PromptText";
 import { useEffect, useRef, useState, type PointerEvent } from "react";
 import {
   Upload,
@@ -89,6 +90,42 @@ export function ToolsPage({
     [reverseBusy, setReverseBusy] = useState(false),
     [localBusy, setLocalBusy] = useState(false),
     [processStatus, setProcessStatus] = useState("");
+  const metadataFields: [string, string][] = [];
+  const comment = metadata.Comment as any;
+  const ownRecipe = metadata.ChatBarStudio as any;
+  if (ownRecipe && typeof ownRecipe === "object") {
+    for (const [label, value] of [
+      ["画风", ownRecipe.style],
+      ["基础 Prompt", ownRecipe.base],
+      ["补充 Prompt", ownRecipe.extra],
+      ["负面 Prompt", ownRecipe.negative],
+    ]) {
+      if (typeof value === "string") metadataFields.push([label, value]);
+    }
+    if (Array.isArray(ownRecipe.characters))
+      ownRecipe.characters.forEach((c: any, i: number) => {
+        if (typeof c?.prompt === "string")
+          metadataFields.push([`角色 ${i + 1}`, c.prompt]);
+        if (typeof c?.negative === "string")
+          metadataFields.push([`角色 ${i + 1} 负面`, c.negative]);
+      });
+  } else if (comment && typeof comment === "object") {
+    const positive = comment.v4_prompt?.caption,
+      negative = comment.v4_negative_prompt?.caption;
+    const add = (label: string, value: unknown) => {
+      if (typeof value === "string") metadataFields.push([label, value]);
+    };
+    add("基础 Prompt", positive?.base_caption ?? comment.prompt);
+    add(
+      "负面 Prompt",
+      negative?.base_caption ?? comment.uc ?? comment.negative_prompt,
+    );
+    if (Array.isArray(positive?.char_captions))
+      positive.char_captions.forEach((c: any, i: number) => {
+        add(`角色 ${i + 1}`, c?.char_caption);
+        add(`角色 ${i + 1} 负面`, negative?.char_captions?.[i]?.char_caption);
+      });
+  }
   const reverseCtrl = useRef<AbortController | null>(null),
     loadVersion = useRef(0),
     processCtrl = useRef<AbortController | null>(null),
@@ -448,9 +485,13 @@ export function ToolsPage({
                 >
                   选择字段并填入工作室
                 </Button>
-                <pre className="json-view">
-                  {JSON.stringify(metadata, null, 2) || "没有可读元数据"}
-                </pre>
+                <PromptFields fields={metadataFields} />
+                <details>
+                  <summary>原始元数据</summary>
+                  <pre className="json-view">
+                    {JSON.stringify(metadata, null, 2) || "没有可读元数据"}
+                  </pre>
+                </details>
               </>
             )}
             {tab === "reverse" && (
@@ -482,12 +523,12 @@ export function ToolsPage({
                 {candidate && (
                   <div className="candidate">
                     <h3>候选提示词</h3>
-                    <p className="prompt-text">{candidate.baseCaption}</p>
+                    <PromptText value={candidate.baseCaption} />
                     {candidate.characters.map((c, i) => (
                       <p key={i}>
                         <strong>角色 {i + 1}</strong>
                         <br />
-                        {c.caption}
+                        <PromptText value={c.caption} />
                       </p>
                     ))}
                     <Button
