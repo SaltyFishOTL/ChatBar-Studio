@@ -1,4 +1,9 @@
-import { unzlibSync, strFromU8 } from "fflate";
+import {
+  inflateMetadata,
+  MAX_METADATA_BYTES,
+  readAlphaMetadata,
+} from "./stealthAlpha";
+import { strFromU8 } from "fflate";
 import {
   bytesOf,
   parsePng,
@@ -14,31 +19,94 @@ import { activeCharacters } from "./promptPolicy";
 export async function pngMetadata(
   blob: Blob,
 ): Promise<Record<string, unknown>> {
+  if (!blob.size || blob.size > 100 * 1024 * 1024)
+    throw Error("图片为空或超过 100 MB");
   const result: Record<string, unknown> = {};
-  for (const c of parsePng(await bytesOf(blob))) {
-    if (!["tEXt", "zTXt", "iTXt"].includes(c.type)) continue;
-    const zero = c.data.indexOf(0);
-    if (zero < 0) continue;
-    const key = new TextDecoder("latin1").decode(c.data.subarray(0, zero));
-    let text = "";
-    if (c.type === "tEXt") text = strFromU8(c.data.subarray(zero + 1));
-    else if (c.type === "zTXt")
-      text = strFromU8(unzlibSync(c.data.subarray(zero + 2)));
-    else {
-      const compressed = c.data[zero + 1] === 1;
-      let start = c.data.indexOf(0, zero + 3) + 1;
-      start = c.data.indexOf(0, start) + 1;
-      const b = c.data.subarray(start);
-      text = strFromU8(compressed ? unzlibSync(b) : b);
-    }
+  const bytes = await bytesOf(blob);
+  const png =
+    bytes[0] === 137 && bytes[1] === 80 && bytes[2] === 78 && bytes[3] === 71;
+  if (png) {
     try {
-      result[key] = JSON.parse(text);
-    } catch {
-      result[key] = text;
+      for (const c of parsePng(bytes)) {
+        if (!["tEXt", "zTXt", "iTXt"].includes(c.type)) continue;
+        try {
+          if (c.data.length > MAX_METADATA_BYTES) throw Error("PNG 元数据过大");
+          const zero = c.data.indexOf(0);
+          if (zero < 0) continue;
+          const key = new TextDecoder("latin1").decode(
+            c.data.subarray(0, zero),
+          );
+          let payload = c.data.subarray(zero + 1);
+          if (c.type === "zTXt") {
+            if (c.data[zero + 1] !== 0) throw Error("PNG 压缩方式无效");
+            payload = await inflateMetadata(
+              c.data.subarray(zero + 2),
+              "deflate",
+            );
+          } else if (c.type === "iTXt") {
+            const flag = c.data[zero + 1];
+            if ((flag !== 0 && flag !== 1) || c.data[zero + 2] !== 0)
+              throw Error("PNG 文本头无效");
+            let start = zero + 3;
+            for (let i = 0; i < 2; i++) {
+              const end = c.data.indexOf(0, start);
+              if (end < 0) throw Error("PNG 文本头截断");
+              start = end + 1;
+            }
+            payload = flag
+              ? await inflateMetadata(c.data.subarray(start), "deflate")
+              : c.data.subarray(start);
+          }
+          const text = strFromU8(payload);
+          try {
+            result[key] = JSON.parse(text);
+          } catch {
+            result[key] = text;
+          }
+        } catch (error) {
+          console.warn("Invalid PNG text metadata", error);
+        }
+      }
+    } catch (error) {
+      console.warn("Cannot read PNG file metadata", error);
     }
+  }
+  if (validNovelAiMetadata(result)) return result;
+  if (png && bytes.length >= 24) {
+    const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+    if (view.getUint32(16) * view.getUint32(20) > 12_582_912)
+      throw Error("图片尺寸过大，无法读取元数据");
+  }
+  try {
+    const text = await readAlphaMetadata(blob);
+    if (text) {
+      const alpha = JSON.parse(text);
+      if (alpha && typeof alpha === "object" && !Array.isArray(alpha)) {
+        if (typeof alpha.Comment === "string")
+          alpha.Comment = JSON.parse(alpha.Comment);
+        if (validNovelAiMetadata(alpha)) {
+          console.info("Reading alpha-channel metadata");
+          return alpha; // Keep sources separate; never attach stale file recipe/Source.
+        }
+      }
+    }
+  } catch (error) {
+    console.warn("Cannot read alpha-channel metadata", error);
   }
   return result;
 }
+
+function validNovelAiMetadata(metadata: Record<string, unknown>) {
+  const c = metadata.Comment as any;
+  return (
+    c &&
+    typeof c === "object" &&
+    !Array.isArray(c) &&
+    (typeof c.prompt === "string" ||
+      typeof c.v4_prompt?.caption?.base_caption === "string")
+  );
+}
+
 export type CharacterImportMode = "off" | "replace" | "append";
 export type MetadataSections = {
   style?: boolean;

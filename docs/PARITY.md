@@ -27,7 +27,7 @@
 | 角色位置编辑               | NovelAiCharacterPositionDialog / PositionPolicy | CharacterPositionEditor / normalizePosition | 编号画布点按/拖动/键盘、百分比、均匀排列、AI 自动；V4.5 格心与 V5 自由坐标，共用请求规范化；待触摸验收 |
 | 图生图 / 局部重绘          | FocusedInpaint / MaskEncoder / Composer    | Guidance / raster.worker                        | 焦点、上下文、潜空间蒙版、Lanczos3 合成；像素对照待验收                        |
 | Precise / Vibe             | NovelAiImageGuidance / VibeEncoding        | Guidance / novelai                              | 模型限制、归一化、按需编码缓存与历史编码快照                                   |
-| PNG / 反推 / 静态编辑      | PngMetadataReader / ImageProcessing        | metadata / Tools                                | 选择性导入（角色关/覆盖/新增）、候选反推、旋转、马赛克；隐私导出统一 PNG，清除文件元数据及 RGB/alpha 最低位隐写，不附回生成参数                                   |
+| PNG / 反推 / 静态编辑      | PngMetadataReader / ImageProcessing        | metadata / Tools                                | 文件块/透明度 LSB 双来源读取（18 项离线导入回归通过）；选择性导入（角色关/覆盖/新增）、候选反推、旋转、马赛克；隐私导出统一 PNG，清除文件元数据及 RGB/alpha 最低位隐写，不附回生成参数                                   |
 | APNG 伪装 / 还原           | ApngDisguiseCodec                          | domain/apng / Tools                             | PNG/GIF 伪装，v1/v2 还原、帧时序；动态图片禁用静态编辑                         |
 | Enhance / Upscale          | ImagePostProcessing / UpscaleService       | postprocess / Tools                             | 请求参数、强度比例、结果保存、前后对比；真实调用待验证                         |
 | 历史                       | HistoryFolding / GalleryExport             | History / Preview / domain/history              | 分组、搜索、选择删除、导出、复现、Seed、参考图、应用撤销                       |

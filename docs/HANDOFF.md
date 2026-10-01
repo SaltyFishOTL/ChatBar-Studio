@@ -21,6 +21,7 @@
 - 角色提示词删除按钮左侧提供折叠/展开：`Character.enabled` 缺省视为启用。停用角色保留正负面、位置、顺序，随草稿/历史/撤销/备份保存；请求、Token、角色上限、位置编辑和附加当前设计只读取 `activeCharacters`。已通过 11 项离线 Chromium 回归，含真实按钮、撤销/重做、刷新、历史恢复、位置过滤和两模型请求；没有付费调用。
 - 图片角色 Prompt 导入支持关/覆盖/新增，默认覆盖。`MetadataSections.characters` 使用 off/replace/append；新增保留原角色 ID、折叠状态和位置，末尾追加新的独立角色；仍可整次撤销。数量校验按实际目标模型和启用角色计算，失败不替换草稿。两端编译及网页构建通过；新增导入离线 Chromium 回归 7 项通过，角色折叠关联回归 11 项通过；Android 导入、位置、折叠回归共 14 项通过。
 - 图像引导编辑、聚焦重绘、Precise/Vibe、元数据、Enhance/Upscale、APNG、ZIP 备份。
+- 图片元数据读取支持 PNG 文本块与 alpha LSB `stealth_pngcomp`/`stealth_pnginfo`：优先有效文件 Comment，缺失/无效时读取透明度；不混合冲突来源的 Source/配方。`domain/stealthAlpha.ts` 按列提取、校验长度并限制解压为 8 MiB；仅读取，不上传或改写原图。`tests/metadata-stealth.ts` 合成样本覆盖压缩/原文、字符串/对象 Comment、文件块兼容、损坏数据及隐私清理；`test-metadata-import.mjs` 18 项通过，真实导入使用仅透明度元数据图，关联隐私回归 18 项通过。
 - 图片隐私导出由 `domain/imagePrivacy.ts` 统一负责：去元数据处理当前结果或原图，马赛克/旋转完成不再附回原文元数据；整图 RGB/alpha 最低位归一化后直接编码新 PNG，清除透明像素 RGB，保留尺寸和透明端点。动画拒绝静态清理；失败保留旧结果并报错。旧版结果需重新处理，APNG 伪装不等于清理。
 - PWA、静态资源服务器、Cloud Run Dockerfile。
 - PWA 后台轮询只检查版本，不发送 SKIP_WAITING；useRegisterSW.onNeedReload 覆盖默认刷新，平台/其他标签页接管不触发导航。仅用户点击「刷新更新」后等待草稿与设置落盘、目标 /sw.js 接管，再单次刷新；生图、AI 设计和未保存图片阻止更新，激活失败或超时保留当前页。更新期间暂禁页面操作。侧栏保留版本时间与检查更新，version.json 不加入离线缓存。入口为 ui/App.tsx、ui/studioUpdate.ts、store.flushSaves。普通刷新可能仍打开旧离线版本；不要仅凭构建成功声称预览或线上已更新。后台不闪屏与跨标签页行为仍待浏览器验收。

@@ -1,3 +1,4 @@
+import { runStealth, stealthFixture } from "./metadata-stealth";
 import React, { useEffect } from "react";
 import { createRoot } from "react-dom/client";
 import { StudioProvider, useStudio } from "../src/ui/store";
@@ -5,14 +6,6 @@ import { ToolsPage } from "../src/ui/Tools";
 import { state, saveState } from "../src/data/db";
 import { draftDefaults, settingsDefaults } from "../src/domain/types";
 import { applyMetadata, type MetadataSections } from "../src/domain/metadata";
-import {
-  canvas,
-  canvasBlob,
-  bytesOf,
-  parsePng,
-  encodePng,
-  textChunk,
-} from "../src/domain/images";
 import "../src/ui/styles.css";
 
 const original = {
@@ -142,15 +135,7 @@ function run() {
   ];
 }
 async function fixture() {
-  const c = canvas(32, 32);
-  c.getContext("2d")!.fillRect(0, 0, 32, 32);
-  const chunks = parsePng(await bytesOf(await canvasBlob(c)));
-  return encodePng([
-    ...chunks.slice(0, -1),
-    textChunk("Comment", JSON.stringify(metadata.Comment)),
-    textChunk("Source", metadata.Source),
-    chunks[chunks.length - 1],
-  ]);
+  return stealthFixture(metadata);
 }
 if (!(await state("draft"))) {
   await saveState("draft", draft());
@@ -160,7 +145,7 @@ function Probe() {
   const store = useStudio();
   useEffect(() => {
     (window as any).importRegression = {
-      run,
+      run: async () => [...run(), ...(await runStealth())],
       fixture,
       store,
       draft: store.draft,
