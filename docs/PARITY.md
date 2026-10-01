@@ -10,7 +10,7 @@
 | 一键应用画风               | ImagePromptToolScreen                      | Studio / store                                  | 只替换画风，可撤销；模型适配提示                                               |
 | 多模型设置、参数、视觉模型 | ModelConfig / model request runtime        | Settings / llm / vault                          | OpenAI 兼容 API；需供应商逐个实测                                              |
 | 模型标识检索选择           | ModelPickerDialog / ModelDiscoveryService  | ModelIdPicker / llm.listModels                  | 关键词 AND、系列筛选、排序、当前项置顶；取消与旧响应隔离；真实接口和交互待验收 |
-| 视觉规范                   | ChatBarTheme / AppIcons                    | styles.css / Lucide / icon.png                  | 保留网页布局，默认浅深色、圆角和图标对齐 APP；浏览器视觉验收待执行             |
+| 视觉规范                   | ChatBarTheme / AppIcons                    | styles.css / Lucide / icon.png                  | Studio PC 三栏与六行自适应；9 项离线布局回归通过；其余页面视觉验收待执行             |
 | 设计规划、检索、修复       | NovelAiPromptDesigner / TagResearch        | design / prompts / jsonCandidates / catalog.worker | 已按当前源码修正首轮/修改轮、证据注入、图片理解、修复与候选转换；实际请求对照待验收 |
 | 设计对话、分支、重试       | NovelAiDesignConversationModels            | Design / IndexedDB                              | 独立对话、首轮不隐式读取工作室                                                 |
 | 原始提示词                 | PromptTemplates.kt                         | public/data/prompts.json / domain/prompts       | 常量原文导出；动态构造迁移，基线留档                                           |
@@ -35,6 +35,8 @@
 | 密钥                       | 网页新增规则                               | vault                                           | 用户授权直接本机保存，无口令；自动读取；普通备份排除凭据                       |
 | 任务与存储                 | Android 后台机制改为浏览器机制             | Web Locks / IndexedDB / PWA                     | 多标签页生成互斥；中断不自动重发；未保存结果可整批下载                         |
 | 发布                       | 独立工程                                   | Dockerfile / server.mjs / metadata.json         | 生产构建通过；AI Studio/Cloud Run 未实际发布                                   |
+
+Studio 桌面三栏与 Prompt 六行自适应已通过 9 项离线 Chromium 回归，含 1280/1440/1920 宽屏及 390px 手机；图片工具的付费 API 与其他浏览器不在此次验证范围。
 
 ## 数据保留与容量
 

@@ -36,6 +36,7 @@ import {
 import { countTokens } from "../data/catalog";
 import { estimateCost } from "../api/novelai";
 import { download, downloadImages } from "../domain/images";
+import { assetBlob } from "../data/db";
 import { historyImages } from "../domain/history";
 import { Preview } from "./components/Preview";
 import { GenerationControls } from "./components/GenerationControls";
@@ -58,26 +59,35 @@ export function Studio({
       negative: number;
     } | null>(null),
     [tokenError, setTokenError] = useState(""),
-    [selected, setSelected] = useState(0),
+    [selected, setSelected] = useState<string | null>(null),
     [preview, setPreview] = useState(false),
     [paste, setPaste] = useState<string | null>(null),
     [positionDraft, setPositionDraft] = useState<StudioDraft | null>(null);
   const images = historyImages(s.history),
-    current = images[selected] || images[0];
+    selectedIndex = Math.max(
+      0,
+      images.findIndex(
+        (image) => `${image.recipe.id}:${image.asset}` === selected,
+      ),
+    ),
+    current = images[selectedIndex];
   const generationBar = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const bar = generationBar.current;
     const page = bar?.closest<HTMLElement>(".studio-page");
     if (!bar || !page) return;
     const resize = () => {
-      page.style.paddingBottom = `${bar.getBoundingClientRect().height + 32}px`;
+      page.style.setProperty(
+        "--generation-bar-height",
+        `${bar.getBoundingClientRect().height}px`,
+      );
     };
     const observer = new ResizeObserver(resize);
     observer.observe(bar);
     resize();
     return () => {
       observer.disconnect();
-      page.style.removeProperty("padding-bottom");
+      page.style.removeProperty("--generation-bar-height");
     };
   }, []);
   useEffect(() => {
@@ -145,299 +155,376 @@ export function Studio({
         value={d[field]}
         onChange={(v) => text(field, v)}
         translate={s.settings.translate}
+        desktopGrow
         rows={field === "base" ? 5 : 3}
       />
     </details>
   );
   return (
     <section className="studio-page">
-      <div className="studio-heading">
-        <div>
-          <p className="eyebrow">CREATE SOMETHING YOURS</p>
-          <h1>生图工作室</h1>
-        </div>
-        <div className="actions">
-          <Button variant="ghost" onClick={() => navigate("design")}>
-            <Sparkles size={17} />
-            AI 设计
-          </Button>
-          <Button variant="ghost" onClick={() => setGuidance(true)}>
-            <ImagePlus size={17} />
-            图像引导
-          </Button>
-          <Button variant="ghost" onClick={() => navigate("tools")}>
-            图像工具
-          </Button>
-        </div>
-      </div>
       <div className="studio-grid">
-        <div className="editor-column">
-          <section className="panel prompt-panel">
-            <div className="section-heading">
-              <h2>提示词</h2>
-              <div className="actions compact">
-                <Button
-                  size="icon"
-                  variant={s.settings.translate ? "secondary" : "ghost"}
-                  title="中文注释"
-                  onClick={() =>
-                    s.configure((v) => ({ ...v, translate: !v.translate }))
-                  }
-                >
-                  <Languages size={16} />
+        <div className="studio-controls">
+          <div className="studio-controls-scroll">
+            <div className="studio-heading">
+              <div>
+                <p className="eyebrow">CREATE SOMETHING YOURS</p>
+                <h1>生图工作室</h1>
+              </div>
+              <div className="actions">
+                <Button variant="ghost" onClick={() => navigate("design")}>
+                  <Sparkles size={17} />
+                  AI 设计
                 </Button>
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  title="复制正面提示词"
-                  onClick={() =>
-                    navigator.clipboard
-                      .writeText(copyPositive(d, s.settings.copyIgnoreStyle))
-                      .then(() => s.notify("已复制分段提示词"))
-                      .catch(s.fail)
-                  }
-                >
-                  <Copy size={16} />
+                <Button variant="ghost" onClick={() => setGuidance(true)}>
+                  <ImagePlus size={17} />
+                  图像引导
                 </Button>
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  title="粘贴覆盖"
-                  onClick={() => setPaste("")}
-                >
-                  <ClipboardPaste size={16} />
-                </Button>
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  title="撤销"
-                  disabled={!s.canUndo}
-                  onClick={s.undo}
-                >
-                  <Undo2 size={16} />
-                </Button>
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  title="重做"
-                  disabled={!s.canRedo}
-                  onClick={s.redo}
-                >
-                  <Redo2 size={16} />
+                <Button variant="ghost" onClick={() => navigate("tools")}>
+                  图像工具
                 </Button>
               </div>
             </div>
-            <Button
-              className="style-switch"
-              variant="secondary"
-              onClick={() => setStylePicker(true)}
-            >
-              <Palette size={17} />
-              <span>选择画风卡</span>
-              <small>{d.style ? "替换画风段" : "25 种预置画风"}</small>
-            </Button>
-            {promptField("style", "画风")}
-            {promptField("base", "基础 Prompt")}
-            {promptField("extra", "补充 Prompt")}
-            <div className="section-heading role-heading">
-              <h3>
-                角色{" "}
-                <span className="badge">
-                  {activeRoles.length}/{MODELS[d.model].roles}
-                </span>
-              </h3>
-              <Button
-                variant="ghost"
-                size="sm"
-                disabled={activeRoles.length >= MODELS[d.model].roles}
-                onClick={() =>
-                  s.edit((v) => ({
-                    ...v,
-                    characters: [...v.characters, newCharacter()],
-                  }))
-                }
-              >
-                <Plus size={16} />
-                添加角色
-              </Button>
-            </div>
-            <div className="role-position-entry">
-              <span>角色位置 · {g.useCoords ? "自定义" : "AI 自动"}</span>
-              <Button
-                variant="ghost"
-                size="sm"
-                disabled={!activeRoles.length}
-                onClick={() => setPositionDraft(structuredClone(d))}
-              >
-                <Pencil size={16} />
-                编辑位置
-              </Button>
-            </div>
-            {d.characters.map((c, i) => (
-              <section key={c.id} className="role-card">
+            <div className="editor-column">
+              <section className="panel prompt-panel">
                 <div className="section-heading">
-                  <strong>
-                    角色 {i + 1}
-                    {c.enabled === false && " · 已停用"}
-                  </strong>
+                  <h2>提示词</h2>
                   <div className="actions compact">
                     <Button
                       size="icon"
-                      variant="ghost"
-                      disabled={i === 0}
-                      title="上移"
+                      variant={s.settings.translate ? "secondary" : "ghost"}
+                      title="中文注释"
                       onClick={() =>
-                        s.edit((v) => {
-                          [v.characters[i - 1], v.characters[i]] = [
-                            v.characters[i],
-                            v.characters[i - 1],
-                          ];
-                          return v;
-                        })
+                        s.configure((v) => ({ ...v, translate: !v.translate }))
                       }
                     >
-                      <ArrowUp size={14} />
+                      <Languages size={16} />
                     </Button>
                     <Button
                       size="icon"
                       variant="ghost"
-                      disabled={i === d.characters.length - 1}
-                      title="下移"
+                      title="复制正面提示词"
                       onClick={() =>
-                        s.edit((v) => {
-                          [v.characters[i + 1], v.characters[i]] = [
-                            v.characters[i],
-                            v.characters[i + 1],
-                          ];
-                          return v;
-                        })
+                        navigator.clipboard
+                          .writeText(
+                            copyPositive(d, s.settings.copyIgnoreStyle),
+                          )
+                          .then(() => s.notify("已复制分段提示词"))
+                          .catch(s.fail)
                       }
                     >
-                      <ArrowDown size={14} />
+                      <Copy size={16} />
                     </Button>
                     <Button
                       size="icon"
                       variant="ghost"
-                      title={
-                        c.enabled === false
-                          ? "展开角色（参与生图）"
-                          : "折叠角色（不参与生图）"
-                      }
-                      aria-label={
-                        c.enabled === false
-                          ? "展开角色（参与生图）"
-                          : "折叠角色（不参与生图）"
-                      }
-                      aria-expanded={c.enabled !== false}
-                      onClick={() =>
-                        s.edit((v) => ({
-                          ...v,
-                          characters: v.characters.map((x) =>
-                            x.id === c.id
-                              ? { ...x, enabled: x.enabled === false }
-                              : x,
-                          ),
-                        }))
-                      }
+                      title="粘贴覆盖"
+                      onClick={() => setPaste("")}
                     >
-                      {c.enabled === false ? (
-                        <ChevronDown size={14} />
-                      ) : (
-                        <ChevronUp size={14} />
-                      )}
+                      <ClipboardPaste size={16} />
                     </Button>
                     <Button
                       size="icon"
                       variant="ghost"
-                      title="删除角色"
-                      onClick={() =>
-                        s.edit((v) => ({
-                          ...v,
-                          characters: v.characters.filter((x) => x.id !== c.id),
-                        }))
-                      }
+                      title="撤销"
+                      disabled={!s.canUndo}
+                      onClick={s.undo}
                     >
-                      <Trash2 size={14} />
+                      <Undo2 size={16} />
+                    </Button>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      title="重做"
+                      disabled={!s.canRedo}
+                      onClick={s.redo}
+                    >
+                      <Redo2 size={16} />
                     </Button>
                   </div>
                 </div>
-                {c.enabled !== false && (
-                  <>
-                    <PromptEditor
-                      label="角色正面"
-                      value={c.prompt}
-                      onChange={(prompt) =>
-                        s.edit(
-                          (v) => ({
-                            ...v,
-                            characters: v.characters.map((x) =>
-                              x.id === c.id ? { ...x, prompt } : x,
-                            ),
-                          }),
-                          "role:" + c.id,
-                        )
-                      }
-                      translate={s.settings.translate}
-                      rows={3}
-                    />
-                    <details>
-                      <summary>角色负面</summary>
-                      <PromptEditor
-                        label="角色负面"
-                        value={c.negative}
-                        onChange={(negative) =>
-                          s.edit(
-                            (v) => ({
+                <Button
+                  className="style-switch"
+                  variant="secondary"
+                  onClick={() => setStylePicker(true)}
+                >
+                  <Palette size={17} />
+                  <span>选择画风卡</span>
+                  <small>{d.style ? "替换画风段" : "25 种预置画风"}</small>
+                </Button>
+                {promptField("style", "画风")}
+                {promptField("base", "基础 Prompt")}
+                {promptField("extra", "补充 Prompt")}
+                <div className="section-heading role-heading">
+                  <h3>
+                    角色{" "}
+                    <span className="badge">
+                      {activeRoles.length}/{MODELS[d.model].roles}
+                    </span>
+                  </h3>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    disabled={activeRoles.length >= MODELS[d.model].roles}
+                    onClick={() =>
+                      s.edit((v) => ({
+                        ...v,
+                        characters: [...v.characters, newCharacter()],
+                      }))
+                    }
+                  >
+                    <Plus size={16} />
+                    添加角色
+                  </Button>
+                </div>
+                <div className="role-position-entry">
+                  <span>角色位置 · {g.useCoords ? "自定义" : "AI 自动"}</span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    disabled={!activeRoles.length}
+                    onClick={() => setPositionDraft(structuredClone(d))}
+                  >
+                    <Pencil size={16} />
+                    编辑位置
+                  </Button>
+                </div>
+                {d.characters.map((c, i) => (
+                  <section key={c.id} className="role-card">
+                    <div className="section-heading">
+                      <strong>
+                        角色 {i + 1}
+                        {c.enabled === false && " · 已停用"}
+                      </strong>
+                      <div className="actions compact">
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          disabled={i === 0}
+                          title="上移"
+                          onClick={() =>
+                            s.edit((v) => {
+                              [v.characters[i - 1], v.characters[i]] = [
+                                v.characters[i],
+                                v.characters[i - 1],
+                              ];
+                              return v;
+                            })
+                          }
+                        >
+                          <ArrowUp size={14} />
+                        </Button>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          disabled={i === d.characters.length - 1}
+                          title="下移"
+                          onClick={() =>
+                            s.edit((v) => {
+                              [v.characters[i + 1], v.characters[i]] = [
+                                v.characters[i],
+                                v.characters[i + 1],
+                              ];
+                              return v;
+                            })
+                          }
+                        >
+                          <ArrowDown size={14} />
+                        </Button>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          title={
+                            c.enabled === false
+                              ? "展开角色（参与生图）"
+                              : "折叠角色（不参与生图）"
+                          }
+                          aria-label={
+                            c.enabled === false
+                              ? "展开角色（参与生图）"
+                              : "折叠角色（不参与生图）"
+                          }
+                          aria-expanded={c.enabled !== false}
+                          onClick={() =>
+                            s.edit((v) => ({
                               ...v,
                               characters: v.characters.map((x) =>
-                                x.id === c.id ? { ...x, negative } : x,
+                                x.id === c.id
+                                  ? { ...x, enabled: x.enabled === false }
+                                  : x,
                               ),
-                            }),
-                            "negative:" + c.id,
-                          )
-                        }
-                        translate={s.settings.translate}
-                        rows={2}
-                      />
-                    </details>
-                  </>
-                )}
+                            }))
+                          }
+                        >
+                          {c.enabled === false ? (
+                            <ChevronDown size={14} />
+                          ) : (
+                            <ChevronUp size={14} />
+                          )}
+                        </Button>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          title="删除角色"
+                          onClick={() =>
+                            s.edit((v) => ({
+                              ...v,
+                              characters: v.characters.filter(
+                                (x) => x.id !== c.id,
+                              ),
+                            }))
+                          }
+                        >
+                          <Trash2 size={14} />
+                        </Button>
+                      </div>
+                    </div>
+                    {c.enabled !== false && (
+                      <>
+                        <PromptEditor
+                          label="角色正面"
+                          value={c.prompt}
+                          onChange={(prompt) =>
+                            s.edit(
+                              (v) => ({
+                                ...v,
+                                characters: v.characters.map((x) =>
+                                  x.id === c.id ? { ...x, prompt } : x,
+                                ),
+                              }),
+                              "role:" + c.id,
+                            )
+                          }
+                          translate={s.settings.translate}
+                          desktopGrow
+                          rows={3}
+                        />
+                        <details>
+                          <summary>角色负面</summary>
+                          <PromptEditor
+                            label="角色负面"
+                            value={c.negative}
+                            onChange={(negative) =>
+                              s.edit(
+                                (v) => ({
+                                  ...v,
+                                  characters: v.characters.map((x) =>
+                                    x.id === c.id ? { ...x, negative } : x,
+                                  ),
+                                }),
+                                "negative:" + c.id,
+                              )
+                            }
+                            translate={s.settings.translate}
+                            desktopGrow
+                            rows={2}
+                          />
+                        </details>
+                      </>
+                    )}
+                  </section>
+                ))}
+                {promptField("negative", "负面 Prompt")}
+                <div className="token-row">
+                  <span
+                    className={
+                      tokens && tokens.positive > MODELS[d.model].tokens
+                        ? "warning"
+                        : ""
+                    }
+                  >
+                    正面 {tokens?.positive ?? "…"}/{MODELS[d.model].tokens}
+                  </span>
+                  <span>
+                    负面 {tokens?.negative ?? "…"}/{MODELS[d.model].tokens}
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      if (confirm("清空全部提示词？参数和参考图保留，可撤销。"))
+                        s.edit((v) => ({
+                          ...v,
+                          style: "",
+                          base: "",
+                          extra: "",
+                          negative: s.settings.defaultNegative,
+                          characters: [],
+                        }));
+                    }}
+                  >
+                    清空提示词
+                  </Button>
+                </div>
+                {tokenError && <small className="error">{tokenError}</small>}
               </section>
-            ))}
-            {promptField("negative", "负面 Prompt")}
-            <div className="token-row">
-              <span
-                className={
-                  tokens && tokens.positive > MODELS[d.model].tokens
-                    ? "warning"
-                    : ""
-                }
-              >
-                正面 {tokens?.positive ?? "…"}/{MODELS[d.model].tokens}
-              </span>
-              <span>
-                负面 {tokens?.negative ?? "…"}/{MODELS[d.model].tokens}
-              </span>
+            </div>
+            <GenerationControls cost={cost} />
+          </div>
+          <div ref={generationBar} className="generation-bar">
+            <div>
+              <strong>
+                {s.busy
+                  ? s.progress?.message || "处理中"
+                  : MODELS[d.model].name}
+              </strong>
+              <small>
+                {s.busy
+                  ? "可继续编辑提示词；当前任务使用启动时快照"
+                  : `${sizeLabel} · ${cost}`}
+              </small>
+            </div>
+            <div className="generation-actions">
+              <div className="account-summary" aria-live="polite">
+                <strong>
+                  {s.account
+                    ? `${s.account.anlas.toLocaleString()} Anlas 积分`
+                    : s.accountLoading
+                      ? "正在查询积分…"
+                      : "积分未获取"}
+                </strong>
+                <small>
+                  {s.account
+                    ? s.account.percent === null
+                      ? "V5 额度未返回"
+                      : `V5 剩余 ${s.account.exhausted ? 0 : Math.max(0, Math.min(100, s.account.percent)).toFixed(1)}% · 约 ${s.account.exhausted ? 0 : Math.round(Math.max(0, Math.min(100, s.account.percent)) * 17.3)} 张`
+                    : "填写 NovelAI Token 后自动更新"}
+                </small>
+                {s.accountError && (
+                  <small className="error">
+                    {s.account ? "刷新失败，显示上次余额" : s.accountError}
+                  </small>
+                )}
+                {s.accountUpdatedAt && (
+                  <small title={new Date(s.accountUpdatedAt).toLocaleString()}>
+                    {s.accountLoading
+                      ? "正在更新…"
+                      : `更新于 ${new Date(s.accountUpdatedAt).toLocaleTimeString()}`}
+                  </small>
+                )}
+              </div>
               <Button
                 variant="ghost"
-                size="sm"
-                onClick={() => {
-                  if (confirm("清空全部提示词？参数和参考图保留，可撤销。"))
-                    s.edit((v) => ({
-                      ...v,
-                      style: "",
-                      base: "",
-                      extra: "",
-                      negative: s.settings.defaultNegative,
-                      characters: [],
-                    }));
-                }}
+                size="icon"
+                aria-label="刷新积分和额度"
+                title={s.accountError || "刷新积分和额度"}
+                disabled={s.accountLoading}
+                onClick={() => void s.refreshAccount()}
               >
-                清空提示词
+                <RefreshCw size={16} />
               </Button>
+              {s.busy ? (
+                <Button variant="destructive" onClick={s.stop}>
+                  <Square size={16} />
+                  停止
+                </Button>
+              ) : (
+                <Button onClick={s.run}>
+                  <Play size={17} />
+                  生成图片
+                </Button>
+              )}
             </div>
-            {tokenError && <small className="error">{tokenError}</small>}
-          </section>
+          </div>
         </div>
         <aside className="output-column">
           <section className="panel output-panel">
@@ -449,6 +536,7 @@ export function Studio({
             </div>
             <button
               className="output-image"
+              aria-label="放大当前图片"
               onClick={() => {
                 if (current && !s.busy) setPreview(true);
               }}
@@ -486,7 +574,7 @@ export function Studio({
               </div>
             )}
             {!s.busy && current && (
-              <div className="actions">
+              <div className="actions image-tools" aria-label="当前图片工具">
                 <Button
                   variant="ghost"
                   size="sm"
@@ -518,14 +606,20 @@ export function Studio({
                 </Button>
               </div>
             )}
-            {s.output && (
+            {!s.busy && (current || s.output) && (
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => download(s.output!, "ChatBar-current.png")}
+                onClick={() => {
+                  if (current)
+                    assetBlob(current.asset)
+                      .then((blob) => download(blob, "ChatBar-current.png"))
+                      .catch(s.fail);
+                  else if (s.output) download(s.output, "ChatBar-current.png");
+                }}
               >
                 <Download size={14} />
-                保存当前结果
+                保存当前图片
               </Button>
             )}
             {!s.busy && s.unsaved.length > 0 && (
@@ -539,83 +633,43 @@ export function Studio({
                 </Button>
               </div>
             )}
-            <div className="recent-strip">
-              {images.slice(0, 20).map((image, i) => (
-                <button
-                  key={image.asset}
-                  className={selected === i ? "selected" : ""}
-                  onClick={() => setSelected(i)}
-                >
-                  <AssetImage source={image.asset} />
-                </button>
-              ))}
-            </div>
           </section>
-          <GenerationControls cost={cost} />
         </aside>
-      </div>
-      <div ref={generationBar} className="generation-bar">
-        <div>
-          <strong>
-            {s.busy ? s.progress?.message || "处理中" : MODELS[d.model].name}
-          </strong>
-          <small>
-            {s.busy
-              ? "可继续编辑提示词；当前任务使用启动时快照"
-              : `${sizeLabel} · ${cost}`}
-          </small>
-        </div>
-        <div className="generation-actions">
-          <div className="account-summary" aria-live="polite">
-            <strong>
-              {s.account
-                ? `${s.account.anlas.toLocaleString()} Anlas 积分`
-                : s.accountLoading
-                  ? "正在查询积分…"
-                  : "积分未获取"}
-            </strong>
-            <small>
-              {s.account
-                ? s.account.percent === null
-                  ? "V5 额度未返回"
-                  : `V5 剩余 ${s.account.exhausted ? 0 : Math.max(0, Math.min(100, s.account.percent)).toFixed(1)}% · 约 ${s.account.exhausted ? 0 : Math.round(Math.max(0, Math.min(100, s.account.percent)) * 17.3)} 张`
-                : "填写 NovelAI Token 后自动更新"}
-            </small>
-            {s.accountError && (
-              <small className="error">
-                {s.account ? "刷新失败，显示上次余额" : s.accountError}
-              </small>
-            )}
-            {s.accountUpdatedAt && (
-              <small title={new Date(s.accountUpdatedAt).toLocaleString()}>
-                {s.accountLoading
-                  ? "正在更新…"
-                  : `更新于 ${new Date(s.accountUpdatedAt).toLocaleTimeString()}`}
-              </small>
-            )}
+        <aside className="studio-history" aria-label="生图历史">
+          <div className="section-heading">
+            <h2>
+              历史 <span className="badge">{images.length}</span>
+            </h2>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => navigate("history")}
+            >
+              管理
+            </Button>
           </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label="刷新积分和额度"
-            title={s.accountError || "刷新积分和额度"}
-            disabled={s.accountLoading}
-            onClick={() => void s.refreshAccount()}
+          <div
+            className="studio-history-list"
+            tabIndex={0}
+            aria-label="历史图片列表"
           >
-            <RefreshCw size={16} />
-          </Button>
-          {s.busy ? (
-            <Button variant="destructive" onClick={s.stop}>
-              <Square size={16} />
-              停止
-            </Button>
-          ) : (
-            <Button onClick={s.run}>
-              <Play size={17} />
-              生成图片
-            </Button>
-          )}
-        </div>
+            {images.length === 0 && (
+              <p className="history-empty">生成的图片会保存在这里</p>
+            )}
+            {images.map((image, i) => (
+              <button
+                key={`${image.recipe.id}:${image.asset}`}
+                className={selectedIndex === i ? "selected" : ""}
+                aria-label={`查看历史图片 ${i + 1}`}
+                aria-pressed={selectedIndex === i}
+                title={`${new Date(image.recipe.createdAt).toLocaleString()} · Seed ${image.seed}`}
+                onClick={() => setSelected(`${image.recipe.id}:${image.asset}`)}
+              >
+                <AssetImage source={image.asset} alt={`历史图片 ${i + 1}`} />
+              </button>
+            ))}
+          </div>
+        </aside>
       </div>
       {positionDraft && (
         <CharacterPositionEditor
@@ -712,7 +766,7 @@ export function Studio({
       {preview && current && (
         <Preview
           images={images}
-          initial={selected}
+          initial={selectedIndex}
           onClose={() => setPreview(false)}
           onTool={onTool}
         />

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Maximize2, Languages } from "lucide-react";
 import { Modal, Button } from "./ui";
 import { searchTags, translateLocal } from "../../data/catalog";
@@ -18,6 +18,7 @@ type Props = {
   placeholder?: string;
   fullscreen?: boolean;
   id?: string;
+  desktopGrow?: boolean;
 };
 export function PromptEditor({
   label,
@@ -28,6 +29,7 @@ export function PromptEditor({
   placeholder,
   fullscreen = false,
   id,
+  desktopGrow = false,
 }: Props) {
   const input = useRef<HTMLTextAreaElement>(null),
     [focused, setFocused] = useState(false),
@@ -43,6 +45,58 @@ export function PromptEditor({
       start: number;
       end: number;
     } | null>(null);
+  useLayoutEffect(() => {
+    const textarea = input.current;
+    if (!textarea || !desktopGrow || fullscreen) return;
+    const media = window.matchMedia("(min-width: 1100px)");
+    let frame = 0;
+    const clear = () => {
+      for (const property of [
+        "height",
+        "min-height",
+        "max-height",
+        "overflow-y",
+        "resize",
+      ])
+        textarea.style.removeProperty(property);
+    };
+    const resize = () => {
+      if (!media.matches) {
+        clear();
+        return;
+      }
+      const style = getComputedStyle(textarea);
+      const border =
+        parseFloat(style.borderTopWidth) + parseFloat(style.borderBottomWidth);
+      const minimum =
+        parseFloat(style.lineHeight) * Math.max(6, rows) +
+        parseFloat(style.paddingTop) +
+        parseFloat(style.paddingBottom) +
+        border;
+      textarea.style.minHeight = `${minimum}px`;
+      textarea.style.maxHeight = "none";
+      textarea.style.overflowY = "hidden";
+      textarea.style.resize = "none";
+      textarea.style.height = "auto";
+      textarea.style.height = `${Math.max(minimum, textarea.scrollHeight + border)}px`;
+    };
+    let width = -1;
+    const observer = new ResizeObserver(([entry]) => {
+      if (entry.contentRect.width === width) return;
+      width = entry.contentRect.width;
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(resize);
+    });
+    observer.observe(textarea);
+    media.addEventListener("change", resize);
+    resize();
+    return () => {
+      cancelAnimationFrame(frame);
+      observer.disconnect();
+      media.removeEventListener("change", resize);
+      clear();
+    };
+  }, [desktopGrow, fullscreen, rows, value, translate]);
   const query = focused ? activeFragment(value, cursor)?.query || "" : "";
   useEffect(() => {
     const abort = new AbortController();

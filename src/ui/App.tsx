@@ -200,7 +200,11 @@ export function App() {
     navigate("tools");
   };
   return (
-    <div className="app-shell" inert={updating} aria-busy={updating}>
+    <div
+      className={`app-shell ${page === "studio" ? "studio-shell" : ""}`}
+      inert={updating}
+      aria-busy={updating}
+    >
       <header className="mobile-header">
         <button className="brand" onClick={() => navigate("studio")}>
           <img src="/icon.png" alt="" />
@@ -246,7 +250,12 @@ export function App() {
             <i />
             本机工作室<small>你的数据，由你保管</small>
           </div>
-          <Button variant="ghost" onClick={() => setHelp(true)}>
+          <Button
+            variant="ghost"
+            title="使用指南"
+            aria-label="使用指南"
+            onClick={() => setHelp(true)}
+          >
             <CircleHelp size={16} />
             使用指南
           </Button>
@@ -255,6 +264,8 @@ export function App() {
               <Button
                 variant="ghost"
                 disabled={checking}
+                title={`检查更新 · ${new Date(buildId).toLocaleString()}`}
+                aria-label="检查更新"
                 onClick={() => void checkUpdate(true)}
               >
                 <RefreshCw size={16} />

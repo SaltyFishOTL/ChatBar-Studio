@@ -19,3 +19,7 @@ Coverage: four stealth signatures, compressed/uncompressed payloads, damaged hea
 ## 图片角色导入离线回归
 
 `node tools/test-metadata-import.mjs` 使用同一浏览器环境变量，合成 PNG 与草稿，拦截外部网络和预置数据。覆盖角色三态导入、旧角色折叠/位置保留、重复导入身份、缺失/空角色、超限不写入，以及真实新增按钮、撤销/重做和刷新恢复。运行需本次用户授权。
+
+## Studio 桌面排版离线回归
+
+`node tools/test-studio-layout.mjs` 使用相同 Playwright/浏览器环境变量、合成风景图及 35 条历史，不读取预置或调用外部接口。覆盖独立三栏滚动、左侧生成栏、六行输入与自动增高/收缩、翻译行距、完整历史、稳定选图、当前图片下载、预览及窄屏恢复。`STUDIO_LAYOUT_SCREENSHOT` 可指定桌面截图路径。
