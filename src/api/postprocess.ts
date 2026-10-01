@@ -99,7 +99,7 @@ export async function enhance(
   const d = applyMetadata(baseDraft, metadata, {
       positive: true,
       negative: true,
-      characters: true,
+      characters: "replace",
       parameters: true,
       seed: true,
     }),

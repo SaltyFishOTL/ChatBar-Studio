@@ -9,7 +9,8 @@ import {
 } from "./images";
 import { putAsset } from "../data/db";
 import { stripImageMetadata } from "./imagePrivacy";
-import type { StudioDraft } from "./types";
+import { MODELS, type StudioDraft } from "./types";
+import { activeCharacters } from "./promptPolicy";
 export async function pngMetadata(
   blob: Blob,
 ): Promise<Record<string, unknown>> {
@@ -38,12 +39,13 @@ export async function pngMetadata(
   }
   return result;
 }
+export type CharacterImportMode = "off" | "replace" | "append";
 export type MetadataSections = {
   style?: boolean;
   guidance?: boolean;
   positive: boolean;
   negative: boolean;
-  characters: boolean;
+  characters: CharacterImportMode;
   parameters: boolean;
   seed: boolean;
 };
@@ -84,14 +86,21 @@ export function applyMetadata(
     next.negative = String(
       negative?.base_caption ?? v.uc ?? v.negative_prompt ?? "",
     );
-  if (sections.characters && Array.isArray(positive?.char_captions)) {
-    next.characters = positive.char_captions.map((c: any, i: number) => ({
-      id: crypto.randomUUID(),
-      prompt: String(c.char_caption || ""),
-      negative: String(negative?.char_captions?.[i]?.char_caption || ""),
-      center: c.centers?.[0] || { x: 0.5, y: 0.5 },
-    }));
-    if (next.characters.length > (model === "V5_FULL" ? 22 : 6))
+  if (sections.characters !== "off" && Array.isArray(positive?.char_captions)) {
+    const importedCharacters = positive.char_captions.map(
+      (c: any, i: number) => ({
+        id: crypto.randomUUID(),
+        prompt: String(c.char_caption || ""),
+        negative: String(negative?.char_captions?.[i]?.char_caption || ""),
+        center: c.centers?.[0] || { x: 0.5, y: 0.5 },
+      }),
+    );
+    next.characters =
+      sections.characters === "append"
+        ? [...next.characters, ...importedCharacters]
+        : importedCharacters;
+    const targetModel = sections.parameters ? model : d.model;
+    if (activeCharacters(next).length > MODELS[targetModel].roles)
       throw Error("元数据角色数量超出模型上限");
   }
   if (sections.parameters) {

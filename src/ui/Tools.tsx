@@ -33,6 +33,7 @@ import {
   importMetadata,
   stripMetadata,
   type MetadataSections,
+  type CharacterImportMode,
 } from "../domain/metadata";
 import { disguise, restoreDisguise, inspectDisguise } from "../domain/apng";
 import { privacyCanvasBlob, webpAnimated } from "../domain/imagePrivacy";
@@ -73,7 +74,7 @@ export function ToolsPage({
     [sections, setSections] = useState<MetadataSections>({
       positive: true,
       negative: true,
-      characters: true,
+      characters: "replace",
       parameters: true,
       seed: true,
       style: false,
@@ -616,10 +617,9 @@ export function ToolsPage({
             style: "独立画风（仅 ChatBar Studio 原图）",
             guidance: "元数据中包含的图像引导与参考配置",
             negative: "基础负面",
-            characters: "角色正负面",
             parameters: "生成参数",
             seed: "Seed",
-          }) as [keyof MetadataSections, string][]
+          }) as [Exclude<keyof MetadataSections, "characters">, string][]
         ).map(([k, label]) => (
           <Toggle
             key={k}
@@ -628,11 +628,35 @@ export function ToolsPage({
             onChange={(v) => setSections((s) => ({ ...s, [k]: v }))}
           />
         ))}
+        <Field label="角色 Prompt（正向与负面）">
+          <select
+            aria-label="角色 Prompt 导入方式"
+            value={sections.characters}
+            onChange={(e) =>
+              setSections((v) => ({
+                ...v,
+                characters: e.target.value as CharacterImportMode,
+              }))
+            }
+          >
+            <option value="off">关</option>
+            <option value="replace">覆盖</option>
+            <option value="append">新增</option>
+          </select>
+        </Field>
+        <p className="muted">
+          新增会保留原有角色，并将图片中的角色正负面与位置追加到末尾。
+        </p>
         <Button
           onClick={async () => {
             try {
-              const d = await importMetadata(s.draft, metadata, sections);
-              s.edit(() => d);
+              const sourceDraft = s.draft;
+              const d = await importMetadata(sourceDraft, metadata, sections);
+              s.edit((current) => {
+                if (current.revision !== sourceDraft.revision)
+                  throw Error("工作室内容已改变，请重新确认导入");
+                return d;
+              });
               setImporting(false);
               s.notify("已导入选中字段");
               onApply();

@@ -15,3 +15,7 @@ Coverage: four stealth signatures, compressed/uncompressed payloads, damaged hea
 ## 角色折叠离线回归
 
 `node tools/test-characters.mjs` 使用同一浏览器环境变量，临时浏览器数据库和内联角色夹具；外部网络与预置数据被拦截。覆盖 V4.5/V5 请求过滤、旧角色默认启用、全折叠坐标关闭、剪贴板、真实折叠/展开按钮、撤销/重做、刷新、历史恢复与位置编号。运行需用户明确授权。
+
+## 图片角色导入离线回归
+
+`node tools/test-metadata-import.mjs` 使用同一浏览器环境变量，合成 PNG 与草稿，拦截外部网络和预置数据。覆盖角色三态导入、旧角色折叠/位置保留、重复导入身份、缺失/空角色、超限不写入，以及真实新增按钮、撤销/重做和刷新恢复。运行需本次用户授权。
