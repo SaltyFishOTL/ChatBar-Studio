@@ -2914,3 +2914,28 @@ pre {
 .prompt-panel > .section-heading .actions {
   flex-wrap: wrap;
 }
+
+.prompt-editor .field-heading {
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.prompt-field-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+}
+.prompt-field-actions .button {
+  white-space: nowrap;
+}
+.translation-state {
+  color: var(--muted);
+  font-size: 11px;
+  margin: 4px 0 8px;
+}
+.translation-failure {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}

@@ -255,7 +255,7 @@ export const settingsDefaults = (negative: string): Settings => ({
   naturalLanguage: false,
   extraRequirement: "",
   characterReferences: [],
-  translate: false,
+  translate: true,
   remoteTranslationConsent: false,
   copyIgnoreStyle: true,
   theme: "light",

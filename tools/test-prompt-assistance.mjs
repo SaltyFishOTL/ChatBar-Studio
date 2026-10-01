@@ -123,6 +123,31 @@ try {
     negative: "red eyes",
     characters: [],
   });
+  const localToggle = page.getByRole("button", {
+    name: "基础 Prompt实时翻译",
+    exact: true,
+  });
+  assert.equal(await localToggle.getAttribute("aria-pressed"), "false");
+  assert.match(await localToggle.innerText(), /关闭/);
+  await localToggle.click();
+  await page
+    .locator(".prompt-editor")
+    .filter({
+      has: page.getByRole("textbox", { name: "基础 Prompt", exact: true }),
+    })
+    .locator(".prompt-annotation-text")
+    .filter({ hasText: "蓝发" })
+    .waitFor();
+  assert.equal(await localToggle.getAttribute("aria-pressed"), "true");
+  await page.evaluate(() => window.layoutRegression.store.flushSaves());
+  await page.reload();
+  await page.waitForFunction(() => !!window.layoutRegression);
+  assert.equal(await localToggle.getAttribute("aria-pressed"), "true");
+  await localToggle.click();
+  assert.equal(await page.locator(".prompt-annotation").count(), 0);
+  passed.push(
+    "per-editor translation state, direct enable and persisted preference",
+  );
   await page.getByRole("button", { name: "中文注释", exact: true }).click();
   const base = page.getByRole("textbox", { name: "基础 Prompt", exact: true });
   const editor = page.locator(".prompt-editor").filter({ has: base });
@@ -173,11 +198,21 @@ try {
     .waitFor();
   await editor.getByRole("status").waitFor();
   failDictionary = false;
+  await editor.getByRole("button", { name: "重试翻译", exact: true }).click();
+  await page.waitForFunction(
+    () =>
+      !document.querySelector(".translation-failure") &&
+      !document.querySelector(".translation-state"),
+  );
+  passed.push("failed translation retries without changing source");
   await base.fill("blue hair, quiet lake");
   await editor
     .locator(".prompt-annotation-text")
     .filter({ hasText: "安静湖泊" })
     .waitFor();
+  await page.waitForFunction(
+    () => !document.querySelector(".translation-state"),
+  );
   assert.equal(await editor.getByRole("status").count(), 0);
   passed.push(
     "partial lookup failure visible, exact matches retained, dictionary recovery",
@@ -464,6 +499,48 @@ try {
   await page.waitForTimeout(300);
   if (process.env.STUDIO_SCREENSHOT_PATH)
     await page.screenshot({ path: process.env.STUDIO_SCREENSHOT_PATH });
+  await page.evaluate(async () => {
+    const { db } = await import("/src/data/db.ts");
+    await (await db).delete("state", "settings");
+  });
+  await page.reload();
+  await page.waitForFunction(() => !!window.layoutRegression);
+  assert.equal(
+    await page
+      .getByRole("button", { name: "基础 Prompt实时翻译", exact: true })
+      .getAttribute("aria-pressed"),
+    "true",
+  );
+  await page
+    .getByRole("button", { name: "基础 Prompt实时翻译", exact: true })
+    .click();
+  await page.evaluate(() => window.layoutRegression.store.flushSaves());
+  await page.reload();
+  await page.waitForFunction(() => !!window.layoutRegression);
+  assert.equal(
+    await page
+      .getByRole("button", { name: "基础 Prompt实时翻译", exact: true })
+      .getAttribute("aria-pressed"),
+    "false",
+  );
+  await page.evaluate(async () => {
+    const { db } = await import("/src/data/db.ts");
+    const database = await db;
+    const settings = await database.get("state", "settings");
+    delete settings.translate;
+    await database.put("state", settings, "settings");
+  });
+  await page.reload();
+  await page.waitForFunction(() => !!window.layoutRegression);
+  assert.equal(
+    await page
+      .getByRole("button", { name: "基础 Prompt实时翻译", exact: true })
+      .getAttribute("aria-pressed"),
+    "true",
+  );
+  passed.push(
+    "fresh and missing preference default on, explicit off survives reload",
+  );
   assert.deepEqual(external, []);
   assert.deepEqual(errors, []);
   console.log(

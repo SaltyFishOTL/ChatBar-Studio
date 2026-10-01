@@ -166,6 +166,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       preset.current = data.cards;
       const d = (await state<StudioDraft>("draft")) || draftDefaults(negative),
         s = (await state<Settings>("settings")) || settingsDefaults(negative);
+      s.translate = s.translate ?? true;
       await loadKeys().catch(fail);
       if (!active) return;
       current.current = d;

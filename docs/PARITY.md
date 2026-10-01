@@ -15,7 +15,7 @@
 | 设计对话、分支、重试       | NovelAiDesignConversationModels            | Design / IndexedDB                              | 独立对话、首轮不隐式读取工作室                                                 |
 | 原始提示词                 | PromptTemplates.kt                         | public/data/prompts.json / domain/prompts       | 常量原文导出；动态构造迁移，基线留档                                           |
 | Tag 搜索 / 预测            | RankedTagIndex / TagCompletion             | catalog.worker / PromptEditor / Library         | 全量索引、增量结果、排序去重、光标前片段替换；设置画风测试词/默认负面使用同一编辑器 |
-| 离线翻译                   | PromptTranslation / WordDictionary         | catalog.worker                                  | 编辑/只读提示词共用注释层与全局开关；Danbooru 优先、ECDICT 补充；14 项离线辅助界面回归通过，使用合成词库，未据此声称全词库/跨浏览器验收                              |
+| 离线翻译                   | PromptTranslation / WordDictionary         | catalog.worker                                  | 编辑/只读提示词共用注释层与全局开关；Danbooru 优先、ECDICT 补充；默认开启并保留手动关闭，编辑框显示状态/重试；17 项离线辅助界面回归通过，使用合成词库，未据此声称全词库/跨浏览器验收                              |
 | 远程翻译                   | 冻结基线无远程翻译调用路径                 | 保留同意状态字段，当前只走本地翻译              | 未擅自添加远程服务；若旧版本另有入口，需提供版本后对照                         |
 | 法典                       | NovelAiCodexCatalog                        | 完整 codex.json / Worker / Library              | 原文浏览、中文 n-gram 召回、首轮/修改轮区分                                    |
 | 分段、复制粘贴、权重       | StudioModels / PromptClipboard             | promptPolicy / Studio / PromptEditor            | 基础、补充、画风、角色正负面、基础负面；全屏确认写回                           |

@@ -1,11 +1,12 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { Maximize2 } from "lucide-react";
+import { Maximize2, Languages } from "lucide-react";
 import { Modal, Button } from "./ui";
 import { searchTags } from "../../data/catalog";
 import { insertCandidate, activeFragment } from "../../domain/promptPolicy";
 import type { Candidate } from "../../domain/types";
 import { PromptAnnotations } from "./PromptAnnotations";
 import { usePromptTranslation } from "./usePromptTranslation";
+import { useStudio } from "../store";
 type Props = {
   label: string;
   value: string;
@@ -28,6 +29,7 @@ export function PromptEditor({
   id,
   desktopGrow = false,
 }: Props) {
+  const { configure } = useStudio();
   const input = useRef<HTMLTextAreaElement>(null),
     [focused, setFocused] = useState(false),
     [cursor, setCursor] = useState(0),
@@ -133,29 +135,54 @@ export function PromptEditor({
     terms: tokens,
     annotations,
     error: translationError,
+    loading: translationLoading,
+    retry: retryTranslation,
   } = usePromptTranslation(value, translate);
   return (
     <div className="prompt-editor">
       <div className="field-heading">
         <label>{label}</label>
-        {!fullscreen && (
+        <div className="prompt-field-actions">
           <Button
-            size="icon"
-            variant="ghost"
-            title="全屏编辑"
-            onClick={() =>
-              setSession({
-                original: value,
-                text: value,
-                start: input.current?.selectionStart || 0,
-                end: input.current?.selectionEnd || 0,
-              })
-            }
+            size="sm"
+            variant={translate ? "secondary" : "ghost"}
+            aria-label={`${label}实时翻译`}
+            aria-pressed={translate}
+            onClick={() => configure((v) => ({ ...v, translate: !translate }))}
           >
-            <Maximize2 size={15} />
+            <Languages size={14} />
+            实时翻译：{translate ? "开启" : "关闭"}
           </Button>
-        )}
+          {!fullscreen && (
+            <Button
+              size="icon"
+              variant="ghost"
+              title="全屏编辑"
+              onClick={() =>
+                setSession({
+                  original: value,
+                  text: value,
+                  start: input.current?.selectionStart || 0,
+                  end: input.current?.selectionEnd || 0,
+                })
+              }
+            >
+              <Maximize2 size={15} />
+            </Button>
+          )}
+        </div>
       </div>
+      {translate &&
+        value &&
+        !translationError &&
+        (translationLoading ||
+          (!Object.keys(annotations).length && /[A-Za-z]/.test(value))) && (
+          <p className="translation-state" role="status">
+            {translationLoading
+              ? "正在翻译，首次使用需加载本地词库…"
+              : "未找到可用的中文注释，原文保留"}
+          </p>
+        )}
       <div
         className={
           "prompt-input-surface " + (translate ? "with-translation" : "")
@@ -187,9 +214,14 @@ export function PromptEditor({
         )}
       </div>
       {translationError && (
-        <p className="error" role="status">
-          {translationError}
-        </p>
+        <div className="translation-failure">
+          <p className="error" role="status">
+            {translationError}
+          </p>
+          <Button variant="ghost" size="sm" onClick={retryTranslation}>
+            重试翻译
+          </Button>
+        </div>
       )}
       {error && !(focused && query) && (
         <p className="error" role="alert">
