@@ -27,6 +27,7 @@ import { useStudio } from "./store";
 import { AssetImage, Button, Toggle, Modal } from "./components/ui";
 import { PromptEditor } from "./components/PromptEditor";
 import { Styles } from "./Styles";
+import { applyStyleCard, clearStudioPrompts } from "../domain/stylePolicy";
 import { GuidanceEditor } from "./Guidance";
 import { MODELS, newCharacter, type StudioDraft } from "../domain/types";
 import {
@@ -448,15 +449,18 @@ export function Studio({
                     variant="ghost"
                     size="sm"
                     onClick={() => {
-                      if (confirm("清空全部提示词？参数和参考图保留，可撤销。"))
-                        s.edit((v) => ({
-                          ...v,
-                          style: "",
-                          base: "",
-                          extra: "",
-                          negative: s.settings.defaultNegative,
-                          characters: [],
-                        }));
+                      if (
+                        confirm(
+                          "清空正向提示词并恢复所选画风卡负面词（未设置时使用默认负面词）？参数和参考图保留，可撤销。",
+                        )
+                      )
+                        s.edit((v) =>
+                          clearStudioPrompts(
+                            v,
+                            s.cards,
+                            s.settings.defaultNegative,
+                          ),
+                        );
                     }}
                   >
                     清空提示词
@@ -748,9 +752,9 @@ export function Studio({
         <Styles
           picker
           onSelect={(card) => {
-            s.edit((d) => ({ ...d, style: card.prompt }));
+            s.edit((d) => applyStyleCard(d, card, s.settings.defaultNegative));
             setStylePicker(false);
-            s.notify("已填入画风：" + card.name);
+            s.notify("已填入画风与负面词：" + card.name);
           }}
         />
       </Modal>

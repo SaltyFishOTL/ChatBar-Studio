@@ -88,6 +88,7 @@ function validCard(c: any) {
   return (
     object(c) &&
     ["id", "name", "prompt", "avatar"].every((k) => typeof c[k] === "string") &&
+    (c.negative === undefined || typeof c.negative === "string") &&
     !c.id.startsWith("preset:") &&
     Number.isFinite(c.createdAt) &&
     Number.isFinite(c.updatedAt)
@@ -138,7 +139,8 @@ export async function stageBackup(file: File): Promise<StagedBackup> {
     if (
       id &&
       (typeof id !== "string" ||
-        (!/^\/data\/style-previews\/[^/\\]+\.(?:webp|png|jpg)$/u.test(id) && !ids.has(id)))
+        (!/^\/data\/style-previews\/[^/\\]+\.(?:webp|png|jpg)$/u.test(id) &&
+          !ids.has(id)))
     )
       throw Error("备份存在缺失的图片引用");
   };
@@ -264,7 +266,11 @@ export async function exportCard(card: StyleCard) {
         {
           format: "chatbar-style-card",
           version: 1,
-          card: { name: card.name, prompt: card.prompt },
+          card: {
+            name: card.name,
+            prompt: card.prompt,
+            negative: card.negative || "",
+          },
           avatar: card.avatar
             ? {
                 mime: (await assetBlob(card.avatar)).type,
@@ -285,7 +291,8 @@ export async function importCard(file: File) {
     v.format !== "chatbar-style-card" ||
     v.version !== 1 ||
     typeof v.card?.name !== "string" ||
-    typeof v.card?.prompt !== "string"
+    typeof v.card?.prompt !== "string" ||
+    (v.card.negative !== undefined && typeof v.card.negative !== "string")
   )
     throw Error("不是有效的画风卡");
   const id = crypto.randomUUID(),
@@ -310,6 +317,7 @@ export async function importCard(file: File) {
       id,
       name: v.card.name,
       prompt: v.card.prompt,
+      negative: v.card.negative || "",
       avatar,
       createdAt: now,
       updatedAt: now,

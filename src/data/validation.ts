@@ -45,6 +45,8 @@ export function validateManifest(m: any) {
   };
   const draft = (v: any) => {
     obj(v, "草稿");
+    if (v.appliedStyleCardId !== undefined)
+      str(v.appliedStyleCardId, "所选画风卡");
     if (!["V4_5_FULL", "V5_FULL"].includes(v.model)) fail("生图模型");
     for (const k of ["style", "base", "extra", "negative"]) str(v[k], k);
     bool(v.continuous, "连续模式");

@@ -23,3 +23,7 @@ Coverage: four stealth signatures, compressed/uncompressed payloads, damaged hea
 ## Studio 桌面排版离线回归
 
 `node tools/test-studio-layout.mjs` 使用相同 Playwright/浏览器环境变量、合成风景图及 35 条历史，不读取预置或调用外部接口。覆盖独立三栏滚动、左侧生成栏、六行输入与自动增高/收缩、翻译行距、完整历史、稳定选图、当前图片下载、预览及窄屏恢复。`STUDIO_LAYOUT_SCREENSHOT` 可指定桌面截图路径。
+
+## 画风负面词离线回归
+
+`node tools/test-style-negatives.mjs` 使用相同浏览器环境变量与合成卡片，拦截预置资源及外部请求。覆盖保存的默认值、新旧卡片、两个选卡入口、现有清空按钮、撤销/重做、刷新持久化、卡片编辑、导入导出与备份，以及 V4.5/V5 请求负面词。

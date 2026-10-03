@@ -1,0 +1,12 @@
+{
+  "androidCommit": "550409689df8c51f459fb50b4e04c8ac2fa4bf35",
+  "scope": "Style-card negative text and default negative only; baseline and unrelated prompts unchanged.",
+  "sources": {
+    "app/app/src/main/assets/presets/image_styles/default-image-styles.json": "a2c2cc20229168cf7880ecc846815de5b8471814add9bce0b66067ac13a71f58",
+    "app/app/src/main/java/com/example/chatbar/domain/prompt/PromptTemplates.kt": "f26bc8210e2c3d37b3051ae771f64563487497ea80720a64fd7c7000446476d8"
+  },
+  "outputs": {
+    "public/data/styles.json": "d8adb9aadba85e73c70f8ae0b3529db136debe064d19d619aac2bc809e445382",
+    "public/data/prompts.json": "56b136da79aa6cdbc4388424589e201f14f72b55e12429719424de515eb30366"
+  }
+}

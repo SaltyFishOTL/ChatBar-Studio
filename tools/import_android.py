@@ -14,7 +14,7 @@ for name in ('tag_completion', 'prompt_dictionary', 'tokenizers', 'licenses'):
 shutil.copytree(assets / 'presets/image_styles/previews', out / 'style-previews', dirs_exist_ok=True)
 shutil.copy2(assets / 'presets/novelai/nai-codex-v1.json', out / 'codex.json')
 catalog = json.loads((assets / 'presets/image_styles/default-image-styles.json').read_text(encoding='utf-8-sig'))
-styles = [{'id': 'preset:' + s['styleKey'], 'name': s['displayName'], 'prompt': s['prompt'], 'avatar': '/data/style-previews/' + s['previewImage'], 'createdAt': 0, 'updatedAt': 0} for s in catalog['styles']]
+styles = [{'id': 'preset:' + s['styleKey'], 'name': s['displayName'], 'prompt': s['prompt'], 'negative': s.get('negativePrompt', ''), 'avatar': '/data/style-previews/' + s['previewImage'], 'createdAt': 0, 'updatedAt': 0} for s in catalog['styles']]
 (out / 'styles.json').write_text(json.dumps({'cards': styles, 'support': {'preset:' + s['styleKey']: s.get('modelSupport','BOTH') for s in catalog['styles']}}, ensure_ascii=False), encoding='utf-8')
 (out / 'style-metadata.json').write_text(json.dumps({'preset:' + s['styleKey']: bool(s.get('negativePrompt', '').strip()) for s in catalog['styles']}, ensure_ascii=False, indent=2), encoding='utf-8')
 dictionary_source = (java / 'domain/image/NovelAiPromptWordDictionary.kt').read_text(encoding='utf-8-sig')

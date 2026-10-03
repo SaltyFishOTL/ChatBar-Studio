@@ -4,10 +4,10 @@
 
 | 范围                       | Android 基线入口                           | 网页实现                                        | 状态 / 验证边界                                                                |
 | -------------------------- | ------------------------------------------ | ----------------------------------------------- | ------------------------------------------------------------------------------ |
-| 25 个预置画风、图片        | NovelAiStyleCatalog / presets/image_styles | public/data/styles.json、style-previews、Styles | 已接入；不导入专属负面                                                         |
-| 个人画风卡管理             | 由角色卡管理抽离                           | StyleCard、Styles、db                           | 已接入；卡片只有管理字段、画风、单张头像                                       |
+| 25 个预置画风、图片        | NovelAiStyleCatalog / presets/image_styles | public/data/styles.json、style-previews、Styles | 已接入；同步导入专属负面                                                         |
+| 个人画风卡管理             | 由角色卡管理抽离                           | StyleCard、Styles、db                           | 已接入；卡片包含管理字段、画风、可选负面词、单张头像                                       |
 | 测试头像                   | 新需求                                     | Styles / stylePreviewTestPrompt                 | 独立快照、512 方图、单张随机 Seed；待付费验证                                  |
-| 一键应用画风               | ImagePromptToolScreen                      | Studio / store                                  | 只替换画风，可撤销；模型适配提示                                               |
+| 一键应用画风               | ImagePromptToolScreen                      | Studio / store                                  | 同步替换画风和基础负面词，可撤销；模型适配提示                                               |
 | 多模型设置、参数、视觉模型 | ModelConfig / model request runtime        | Settings / llm / vault                          | OpenAI 兼容 API；需供应商逐个实测                                              |
 | 模型标识检索选择           | ModelPickerDialog / ModelDiscoveryService  | ModelIdPicker / llm.listModels                  | 关键词 AND、系列筛选、排序、当前项置顶；取消与旧响应隔离；真实接口和交互待验收 |
 | 视觉规范                   | ChatBarTheme / AppIcons                    | styles.css / Lucide / icon.png                  | Studio PC 三栏与六行自适应；9 项离线布局回归通过；其余页面视觉验收待执行             |
@@ -40,7 +40,7 @@ Studio 桌面三栏与 Prompt 六行自适应已通过 9 项离线 Chromium 回�
 
 ## 数据保留与容量
 
-画风库与工作室画风选择器支持 V4.5/V5 筛选；原预置独立负面词存在标识保留在目录元数据，卡片本身仍不保存负面词，选卡也不会替换负面段。头像生成位于卡片编辑器，缺少 Token/测试词时打开设置并定位，返回保留编辑草稿。生成和上传头像随卡片一起事务保存，取消编辑不覆盖旧头像。
+画风库与工作室画风选择器支持 V4.5/V5 筛选；原预置独立负面词存在标识保留在目录元数据，卡片保存可选负面词，选卡同步替换基础负面段；无独立负面词时采用设置默认值。现有清空按钮优先恢复所选卡当前负面词，缺失则用设置默认值，整次可撤销。头像生成位于卡片编辑器，缺少 Token/测试词时打开设置并定位，返回保留编辑草稿。生成和上传头像随卡片一起事务保存，取消编辑不覆盖旧头像。
 
 历史记录删除会移除历史条目。图片可能仍被草稿、参考图、撤销快照或工具结果使用；当前实现保守保留底层图片资源，不自动做不可恢复的资源清扫。完整备份也包含这些资源，因此删除历史暂时不保证立即释放空间。
 

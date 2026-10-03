@@ -164,8 +164,11 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       )
         throw Error("预置画风负面词标识不完整，请刷新资源后重试");
       preset.current = data.cards;
-      const d = (await state<StudioDraft>("draft")) || draftDefaults(negative),
-        s = (await state<Settings>("settings")) || settingsDefaults(negative);
+      const s =
+          (await state<Settings>("settings")) || settingsDefaults(negative),
+        d =
+          (await state<StudioDraft>("draft")) ||
+          draftDefaults(s.defaultNegative);
       s.translate = s.translate ?? true;
       await loadKeys().catch(fail);
       if (!active) return;

@@ -18,6 +18,7 @@ import { getKey } from "../data/vault";
 import { SettingsPage, type SettingsFocus } from "./Settings";
 import { exportCard, importCard } from "../data/backup";
 import { draftDefaults, type StyleCard } from "../domain/types";
+import { applyStyleCard, styleNegative } from "../domain/stylePolicy";
 import { download, normalizeImage } from "../domain/images";
 import { generate } from "../api/novelai";
 export function Styles({
@@ -69,8 +70,8 @@ export function Styles({
       onSelect(card);
       return;
     }
-    s.edit((d) => ({ ...d, style: card.prompt }));
-    s.notify("已填入画风：" + card.name);
+    s.edit((d) => applyStyleCard(d, card, s.settings.defaultNegative));
+    s.notify("已填入画风与负面词：" + card.name);
   };
   const create = () => {
     const now = Date.now();
@@ -109,7 +110,7 @@ export function Styles({
     avatarController.current = controller;
     setGeneratingAvatar(true);
     const cfg = structuredClone(s.settings);
-    const d = draftDefaults(cfg.defaultNegative);
+    const d = draftDefaults(styleNegative(card, cfg.defaultNegative));
     d.model = s.draft.model;
     d.style = card.prompt;
     d.base = cfg.stylePreviewTestPrompt;
@@ -256,11 +257,11 @@ export function Styles({
                 </small>
                 <small
                   className="style-negative-label"
-                  title="仅标识原预置是否附带独立负面词，选卡不会替换工作室负面提示词"
+                  title="应用画风时同步填入负面词；未设置时使用默认负面词"
                 >
-                  {s.presetNegative[card.id]
-                    ? "原预置含负面词 · 不自动填入"
-                    : "无独立负面词"}
+                  {card.negative?.trim()
+                    ? "含专属负面词 · 同步填入"
+                    : "使用默认负面词"}
                 </small>
               </div>
               <p>
@@ -401,6 +402,12 @@ export function Styles({
                 label="画风提示词"
                 value={editing.prompt}
                 onChange={(prompt) => setEditing({ ...editing, prompt })}
+                translate={s.settings.translate}
+              />
+              <PromptEditor
+                label="画风负面提示词（留空使用默认）"
+                value={editing.negative || ""}
+                onChange={(negative) => setEditing({ ...editing, negative })}
                 translate={s.settings.translate}
               />
             </fieldset>

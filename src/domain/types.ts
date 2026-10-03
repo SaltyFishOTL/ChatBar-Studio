@@ -14,6 +14,7 @@ export const MODELS = {
   },
 } as const;
 export type StyleCard = {
+  negative?: string;
   id: string;
   name: string;
   prompt: string;
@@ -79,6 +80,7 @@ export type Guidance = {
   vibes: Reference[];
 };
 export type StudioDraft = {
+  appliedStyleCardId?: string;
   style: string;
   base: string;
   extra: string;
