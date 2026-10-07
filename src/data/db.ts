@@ -42,14 +42,79 @@ export function changed() {
   channel?.postMessage("change");
 }
 export async function state<T>(key: string): Promise<T | undefined> {
+  if (key === "draft" || key === "historyApplyUndo") {
+    const tx = (await db).transaction(["state", "assets"], "readwrite");
+    const draft = (await tx.objectStore("state").get(key)) as
+      StudioDraft | undefined;
+    if (draft) {
+      await compactDraftPayloads(draft, tx.objectStore("assets"));
+      await tx.objectStore("state").put(draft, key);
+    }
+    await tx.done;
+    return draft as T | undefined;
+  }
   return (await db).get("state", key) as Promise<T | undefined>;
 }
 export async function saveState(key: string, value: unknown) {
-  await (await db).put("state", value, key);
+  if (key === "historyApplyUndo") {
+    const tx = (await db).transaction(["state", "assets"], "readwrite");
+    const snapshot = structuredClone(value) as StudioDraft;
+    await compactDraftPayloads(snapshot, tx.objectStore("assets"));
+    await tx.objectStore("state").put(snapshot, key);
+    await tx.done;
+  } else await (await db).put("state", value, key);
   changed();
 }
 export async function saveDraft(draft: StudioDraft) {
-  await saveState("draft", draft);
+  const tx = (await db).transaction(["state", "assets"], "readwrite");
+  const snapshot = structuredClone(draft);
+  await compactDraftPayloads(snapshot, tx.objectStore("assets"));
+  await tx.objectStore("state").put(snapshot, "draft");
+  await tx.done;
+  changed();
+}
+export const VIBE_ASSET_PREFIX = "chatbar-vibe-asset:";
+export async function compactDraftPayloads(
+  draft: StudioDraft,
+  assets: { put: (value: Asset, key: string) => Promise<unknown> },
+) {
+  for (const reference of draft.guidance.vibes) {
+    const value = reference.encoding;
+    if (!value || value.startsWith(VIBE_ASSET_PREFIX) || value.length < 4096)
+      continue;
+    const id = crypto.randomUUID();
+    await assets.put(
+      {
+        id,
+        blob: new Blob([value], { type: "application/x-novelai-vibe" }),
+        createdAt: Date.now(),
+      },
+      id,
+    );
+    reference.encoding = VIBE_ASSET_PREFIX + id;
+  }
+}
+export async function resolveVibePayload(value: string): Promise<string> {
+  return value.startsWith(VIBE_ASSET_PREFIX)
+    ? (await assetBlob(value.slice(VIBE_ASSET_PREFIX.length))).text()
+    : value;
+}
+// Cursor reads one legacy recipe at a time. Grouping retains exact text/folds; raw requests stay on disk.
+export async function loadHistoryCompact(): Promise<Recipe[]> {
+  const tx = (await db).transaction(["history", "assets"], "readwrite"),
+    items: Recipe[] = [];
+  let cursor = await tx.objectStore("history").openCursor();
+  while (cursor) {
+    const recipe = cursor.value;
+    const old = recipe.draft.guidance.vibes.map((v) => v.encoding);
+    await compactDraftPayloads(recipe.draft, tx.objectStore("assets"));
+    if (recipe.draft.guidance.vibes.some((v, i) => v.encoding !== old[i]))
+      await cursor.update(recipe);
+    items.push({ ...recipe, request: {} });
+    cursor = await cursor.continue();
+  }
+  await tx.done;
+  return items;
 }
 export async function saveSettings(settings: Settings) {
   await saveState("settings", settings);
@@ -157,6 +222,7 @@ export async function commitBatch(recipe: Recipe, images: Blob[]) {
         recipe.images[i].asset,
       ),
   );
+  await compactDraftPayloads(recipe.draft, tx.objectStore("assets"));
   await tx.objectStore("history").put(recipe, recipe.id);
   await tx.done;
   changed();
@@ -165,12 +231,16 @@ export async function deleteHistoryAssets(selected: Set<string>) {
   if (!selected.size) return 0;
   const tx = (await db).transaction("history", "readwrite");
   let count = 0;
-  for (const r of await tx.store.getAll()) {
-    const images = r.images.filter((i) => !selected.has(i.asset));
-    if (images.length === r.images.length) continue;
-    count += r.images.length - images.length;
-    if (images.length) await tx.store.put({ ...r, images }, r.id);
-    else await tx.store.delete(r.id);
+  let cursor = await tx.store.openCursor();
+  while (cursor) {
+    const r = cursor.value,
+      images = r.images.filter((i) => !selected.has(i.asset));
+    if (images.length !== r.images.length) {
+      count += r.images.length - images.length;
+      if (images.length) await cursor.update({ ...r, images });
+      else await cursor.delete();
+    }
+    cursor = await cursor.continue();
   }
   await tx.done;
   if (count) changed(); // Drafts/undo can still reference these assets. Only explicit cleanup owns deletion.

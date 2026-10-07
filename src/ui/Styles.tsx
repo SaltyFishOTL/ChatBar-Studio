@@ -1,3 +1,10 @@
+import {
+  samplersFor,
+  compatibleSampler,
+  supportsVarietyPlus,
+  cardImageSettings,
+} from "../domain/imageCapabilities";
+import { MODELS, type ImageModel } from "../domain/types";
 import { PromptText } from "./components/PromptText";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -111,11 +118,17 @@ export function Styles({
     setGeneratingAvatar(true);
     const cfg = structuredClone(s.settings);
     const d = draftDefaults(styleNegative(card, cfg.defaultNegative));
-    d.model = s.draft.model;
+    d.model = card.imageSettings?.model || s.draft.model;
     d.style = card.prompt;
     d.base = cfg.stylePreviewTestPrompt;
     d.perModel[d.model] = {
       ...structuredClone(s.draft.perModel[d.model]),
+      ...(card.imageSettings
+        ? cardImageSettings(card.imageSettings.model, {
+            ...s.draft.perModel[d.model],
+            ...card.imageSettings,
+          })
+        : {}),
       width: 512,
       height: 512,
       count: 1,
@@ -272,7 +285,8 @@ export function Styles({
                 s.support[card.id] !==
                   (s.draft.model === "V5_FULL" ? "V5" : "V4.5") && (
                   <small className="warning">
-                    此画风推荐 {s.support[card.id]}；不会自动切换模型
+                    此画风推荐 {s.support[card.id]}
+                    ；应用时优先使用卡片高级设置中的模型
                   </small>
                 )}
               <div className="actions compact">
@@ -404,6 +418,115 @@ export function Styles({
                 onChange={(prompt) => setEditing({ ...editing, prompt })}
                 translate={s.settings.translate}
               />
+              <details>
+                <summary>高级设置</summary>
+                <Field label="模型版本">
+                  <select
+                    value={editing.imageSettings?.model || s.draft.model}
+                    onChange={(e) => {
+                      const model = e.target.value as ImageModel;
+                      setEditing({
+                        ...editing,
+                        imageSettings: cardImageSettings(model, {
+                          ...s.draft.perModel[model],
+                          ...editing.imageSettings,
+                        }),
+                      });
+                    }}
+                  >
+                    {Object.entries(MODELS).map(([id, m]) => (
+                      <option key={id} value={id}>
+                        {m.name}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+                {(() => {
+                  const model = editing.imageSettings?.model || s.draft.model;
+                  const cfg =
+                    editing.imageSettings ||
+                    cardImageSettings(model, s.draft.perModel[model]);
+                  const update = (change: Partial<typeof cfg>) =>
+                    setEditing({
+                      ...editing,
+                      imageSettings: { ...cfg, ...change },
+                    });
+                  return (
+                    <>
+                      <Field label="Sampler">
+                        <select
+                          value={compatibleSampler(model, cfg.sampler)}
+                          onChange={(e) => update({ sampler: e.target.value })}
+                        >
+                          {samplersFor(model).map(([id, label]) => (
+                            <option key={id} value={id}>
+                              {label}
+                            </option>
+                          ))}
+                        </select>
+                      </Field>
+                      <Field label={`Steps · ${cfg.steps}`}>
+                        <input
+                          type="range"
+                          min="1"
+                          max="50"
+                          step="1"
+                          value={cfg.steps}
+                          onChange={(e) =>
+                            update({ steps: Number(e.target.value) })
+                          }
+                        />
+                      </Field>
+                      <Field label={`CFG · ${cfg.guidance}`}>
+                        <input
+                          type="range"
+                          min="1"
+                          max="10"
+                          step="0.1"
+                          value={cfg.guidance}
+                          onChange={(e) =>
+                            update({ guidance: Number(e.target.value) })
+                          }
+                        />
+                      </Field>
+                      <Field label={`CFG Rescale · ${cfg.cfgRescale}`}>
+                        <input
+                          type="range"
+                          min="0"
+                          max="1"
+                          step="0.05"
+                          value={cfg.cfgRescale}
+                          onChange={(e) =>
+                            update({ cfgRescale: Number(e.target.value) })
+                          }
+                        />
+                      </Field>
+                      {supportsVarietyPlus(model) && (
+                        <label>
+                          <input
+                            type="checkbox"
+                            checked={cfg.varietyPlus ?? false}
+                            onChange={(e) =>
+                              update({ varietyPlus: e.target.checked })
+                            }
+                          />
+                          V+ · Variety+
+                        </label>
+                      )}
+                      {editing.imageSettings && (
+                        <Button
+                          variant="ghost"
+                          onClick={() =>
+                            setEditing({ ...editing, imageSettings: undefined })
+                          }
+                        >
+                          恢复默认生图参数
+                        </Button>
+                      )}
+                    </>
+                  );
+                })()}
+              </details>
               <PromptEditor
                 label="画风负面提示词（留空使用默认）"
                 value={editing.negative || ""}

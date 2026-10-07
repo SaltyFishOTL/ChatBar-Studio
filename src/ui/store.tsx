@@ -1,3 +1,4 @@
+import { loadHistoryCompact } from "../data/db";
 import {
   createContext,
   useContext,
@@ -135,7 +136,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     await loadKeys().catch(fail);
     const [personal, records] = await Promise.all([
       d.getAll("cards"),
-      d.getAll("history"),
+      loadHistoryCompact(),
     ]);
     setCards([
       ...preset.current,

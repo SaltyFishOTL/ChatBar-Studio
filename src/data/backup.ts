@@ -1,5 +1,6 @@
+import { validCardImageSettings } from "../domain/imageCapabilities";
 import { zipSync, unzipSync, strToU8, strFromU8 } from "fflate";
-import { db, changed, assetBlob } from "./db";
+import { db, changed, assetBlob, VIBE_ASSET_PREFIX } from "./db";
 import { base64, bytesOf, fromBase64 } from "../domain/images";
 import { validateManifest } from "./validation";
 import type {
@@ -89,6 +90,7 @@ function validCard(c: any) {
     object(c) &&
     ["id", "name", "prompt", "avatar"].every((k) => typeof c[k] === "string") &&
     (c.negative === undefined || typeof c.negative === "string") &&
+    validCardImageSettings(c.imageSettings) &&
     !c.id.startsWith("preset:") &&
     Number.isFinite(c.createdAt) &&
     Number.isFinite(c.updatedAt)
@@ -185,7 +187,11 @@ export async function stageBackup(file: File): Promise<StagedBackup> {
     ref(v.guidance.mask);
     ref(v.guidance.precise);
     if (!Array.isArray(v.guidance.vibes)) throw Error("Vibe 数据无效");
-    v.guidance.vibes.forEach((v: any) => ref(v.asset));
+    v.guidance.vibes.forEach((v: any) => {
+      ref(v.asset);
+      if (v.encoding?.startsWith(VIBE_ASSET_PREFIX))
+        ref(v.encoding.slice(VIBE_ASSET_PREFIX.length));
+    });
   };
   if (m.state.draft) draft(m.state.draft);
   if (m.state.historyApplyUndo) draft(m.state.historyApplyUndo);
@@ -270,6 +276,7 @@ export async function exportCard(card: StyleCard) {
             name: card.name,
             prompt: card.prompt,
             negative: card.negative || "",
+            imageSettings: card.imageSettings,
           },
           avatar: card.avatar
             ? {
@@ -288,6 +295,7 @@ export async function exportCard(card: StyleCard) {
 export async function importCard(file: File) {
   const v = JSON.parse(await file.text());
   if (
+    !validCardImageSettings(v.card?.imageSettings) ||
     v.format !== "chatbar-style-card" ||
     v.version !== 1 ||
     typeof v.card?.name !== "string" ||
@@ -318,6 +326,7 @@ export async function importCard(file: File) {
       name: v.card.name,
       prompt: v.card.prompt,
       negative: v.card.negative || "",
+      imageSettings: v.card.imageSettings,
       avatar,
       createdAt: now,
       updatedAt: now,

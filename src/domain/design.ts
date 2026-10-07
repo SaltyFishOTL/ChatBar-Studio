@@ -191,25 +191,8 @@ export async function designTurn(
       const vision = settings.models.find((m) => m.id === model.visionModelId);
       if (!vision?.isMultimodal)
         throw Error("当前模型不支持图片，请配置关联视觉模型");
-      const params = { ...vision.customParams };
-      const legacy =
-        vision.thinking !== "default" ||
-        ["enable_thinking", "thinking_budget", "max_thinking_tokens"].some(
-          (k) => k in params,
-        );
-      const effortOnly =
-        !legacy && !!(vision.reasoningEffort || params.reasoning_effort);
-      if ("enable_thinking" in params) params.enable_thinking = false;
-      delete params.thinking_budget;
-      delete params.max_thinking_tokens;
-      delete params.reasoning_effort;
       const r = await complete(
-        {
-          ...vision,
-          customParams: params,
-          thinking: vision.thinking === "default" ? "default" : "off",
-          reasoningEffort: effortOnly ? "none" : "",
-        },
+        vision,
         [
           { role: "system", content: p.IMAGE_DESCRIPTION_PROMPT },
           {

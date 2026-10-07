@@ -1,4 +1,5 @@
 import type { StudioDraft, StyleCard } from "./types";
+import { applyCardImageSettings } from "./imageCapabilities";
 
 export function styleNegative(
   card: StyleCard | undefined,
@@ -17,6 +18,18 @@ export function applyStyleCard(
     style: card.prompt,
     negative: styleNegative(card, defaultNegative),
     appliedStyleCardId: card.id,
+    ...(card.imageSettings
+      ? {
+          model: card.imageSettings.model,
+          perModel: {
+            ...draft.perModel,
+            [card.imageSettings.model]: applyCardImageSettings(
+              draft.perModel[card.imageSettings.model],
+              card.imageSettings,
+            ),
+          },
+        }
+      : {}),
   };
 }
 

@@ -183,6 +183,8 @@ export function applyMetadata(
     ] as const)
       if (Number.isFinite(Number(v[key]))) s[field] = Number(v[key]);
     if (typeof v.sampler === "string") s.sampler = v.sampler;
+    if ("skip_cfg_above_sigma" in v)
+      s.varietyPlus = Number(v.skip_cfg_above_sigma) > 0;
     s.useCoords = !!(v.use_coords || v.v4_prompt?.use_coords);
   }
   if (sections.seed && Number.isInteger(v.seed)) {

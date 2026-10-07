@@ -1,3 +1,8 @@
+import { resolveVibePayload } from "../data/db";
+import {
+  compatibleSampler,
+  supportsVarietyPlus,
+} from "../domain/imageCapabilities";
 import { decode } from "@msgpack/msgpack";
 import {
   MODELS,
@@ -158,8 +163,10 @@ export async function prepareGuidance(
   if (d.model === "V4_5_FULL" && g.referenceMode === "vibe") {
     if (g.vibes.length > 16) throw Error("最多 16 个 Vibe");
     p.reference_image_multiple = await Promise.all(
-      g.vibes.map(
-        (v) => v.encoding || vibe(v.asset, v.information, settings, signal),
+      g.vibes.map((v) =>
+        v.encoding
+          ? resolveVibePayload(v.encoding)
+          : vibe(v.asset, v.information, settings, signal),
       ),
     );
     p.reference_information_extracted_multiple = g.vibes.map(
@@ -197,7 +204,7 @@ export function buildRequest(
       width: prepared.width,
       height: prepared.height,
       scale: s.guidance,
-      sampler: s.sampler,
+      sampler: compatibleSampler(d.model, s.sampler),
       steps: s.steps,
       seed,
       extra_noise_seed: seed,
@@ -215,7 +222,9 @@ export function buildRequest(
       sm_dyn: false,
       dynamic_thresholding: false,
       cfg_rescale: s.cfgRescale,
-      skip_cfg_above_sigma: null,
+      ...(supportsVarietyPlus(d.model)
+        ? { skip_cfg_above_sigma: s.varietyPlus ? 58 : null }
+        : {}),
       deliberate_euler_ancestral_bug: false,
       prefer_brownian: true,
       stream: "msgpack",
@@ -242,7 +251,12 @@ export function buildRequest(
         use_coords: coords,
         use_order: true,
       },
-      ...prepared.parameters,
+      ...Object.fromEntries(
+        Object.entries(prepared.parameters).filter(
+          ([key]) =>
+            key !== "skip_cfg_above_sigma" || supportsVarietyPlus(d.model),
+        ),
+      ),
     },
   };
 }

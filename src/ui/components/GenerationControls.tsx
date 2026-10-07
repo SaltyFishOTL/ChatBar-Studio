@@ -18,19 +18,17 @@ import { effectiveSize } from "../../domain/promptPolicy";
 import { Button, Field, NumberField, Toggle } from "./ui";
 import { SizeEditor } from "./SizeEditor";
 
-const samplers = [
-  ["k_euler_ancestral", "Euler Ancestral"],
-  ["k_euler", "Euler"],
-  ["k_dpmpp_2s_ancestral", "DPM++ 2S Ancestral"],
-  ["k_dpmpp_2m", "DPM++ 2M"],
-  ["k_dpmpp_sde", "DPM++ SDE"],
-  ["ddim_v3", "DDIM"],
-];
+import {
+  samplersFor,
+  compatibleSampler,
+  supportsVarietyPlus,
+} from "../../domain/imageCapabilities";
 
 export function GenerationControls() {
   const s = useStudio(),
     d = s.draft,
     g = d.perModel[d.model],
+    samplers = samplersFor(d.model),
     choice = sizeChoice(g);
   const [sizeDraft, setSizeDraft] = useState<StudioDraft | null>(null);
   const change = (
@@ -237,9 +235,16 @@ export function GenerationControls() {
             />
           </Field>
         </div>
+        {supportsVarietyPlus(d.model) && (
+          <Toggle
+            checked={g.varietyPlus ?? false}
+            onChange={(v) => setting("varietyPlus", v)}
+            label="V+ · Variety+"
+          />
+        )}
         <Field label="Sampler">
           <select
-            value={g.sampler}
+            value={compatibleSampler(d.model, g.sampler)}
             onChange={(e) => setting("sampler", e.target.value)}
           >
             {samplers.map(([id, label]) => (

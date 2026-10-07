@@ -1,3 +1,4 @@
+import { supportsVarietyPlus } from "../domain/imageCapabilities";
 import type { Settings, StudioDraft } from "../domain/types";
 import { getKey } from "../data/vault";
 import { directFetch, endpoint, checkResponse, readLimited } from "./http";
@@ -151,7 +152,10 @@ export async function enhance(
     "prefer_brownian",
   ];
   for (const key of allowed)
-    if (key in comment)
+    if (
+      key in comment &&
+      (key !== "skip_cfg_above_sigma" || supportsVarietyPlus(d.model))
+    )
       (request.parameters as Record<string, unknown>)[key] = comment[key];
   Object.assign(request.parameters, {
     image: base64(await bytesOf(await normalizeImage(blob, width, height))),

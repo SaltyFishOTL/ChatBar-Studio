@@ -78,6 +78,7 @@ export function validateManifest(m: any) {
       ])
         num(s[k], k);
       str(s.sampler, "sampler");
+      if (s.varietyPlus !== undefined) bool(s.varietyPlus, "varietyPlus");
       bool(s.useCoords, "useCoords");
       if (s.sizeChoice != null) {
         const choice = obj(s.sizeChoice, "尺寸选择");

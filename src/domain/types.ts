@@ -15,6 +15,10 @@ export const MODELS = {
 } as const;
 export type StyleCard = {
   negative?: string;
+  imageSettings?: Pick<
+    GenerationSettings,
+    "steps" | "guidance" | "sampler" | "cfgRescale" | "varietyPlus"
+  > & { model: ImageModel };
   id: string;
   name: string;
   prompt: string;
@@ -43,6 +47,7 @@ export type GenerationSettings = {
   steps: number;
   guidance: number;
   cfgRescale: number;
+  varietyPlus?: boolean;
   sampler: string;
   count: number;
   seed: number;

@@ -96,6 +96,14 @@ try {
   );
   await page.getByRole("button", { name: "编辑", exact: true }).click();
   const editor = page.getByRole("dialog");
+  assert.equal(await editor.locator("details").getAttribute("open"), null);
+  await editor.locator("summary").filter({ hasText: "高级设置" }).click();
+  await editor.locator("details select").first().selectOption("V5_FULL");
+  assert.equal(await editor.locator("details input[type=checkbox]").count(), 0);
+  await editor.locator("details select").first().selectOption("V4_5_FULL");
+  assert.equal(await editor.locator("details input[type=checkbox]").count(), 1);
+  await editor.locator("details input[type=checkbox]").check();
+  passed.push("advanced editor starts collapsed and gates V+ by model");
   await editor.locator("textarea").nth(1).fill("edited negative");
   await page.getByRole("button", { name: "保存画风卡", exact: true }).click();
   await page.waitForFunction(() =>
@@ -117,6 +125,13 @@ try {
     ).put("cards", { ...c, negative: " card negative " }, "personal");
   });
   passed.push(...(await page.evaluate(() => window.negativeRegression.run())));
+  passed.push(
+    ...(await page.evaluate(async () => {
+      const { runAdvancedRegression } =
+        await import("/tests/advanced-generation.ts");
+      return runAdvancedRegression();
+    })),
+  );
   assert.deepEqual(errors, []);
   console.log(
     JSON.stringify({ passed: passed.length, cases: passed }, null, 2),
