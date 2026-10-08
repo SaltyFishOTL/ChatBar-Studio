@@ -150,12 +150,85 @@ function plannerDecision(
   }
   return { queries, scene };
 }
+export async function recognizeReverseScene(
+  turn: DesignTurn,
+  settings: Settings,
+  references: { name: string; prompt: string }[],
+  signal: AbortSignal,
+  update: (p: DesignProgress) => void,
+): Promise<string> {
+  const model = settings.models.find((m) => m.id === turn.modelId);
+  if (!model) throw Error("所选 LLM 已不存在，请重新选择");
+  if (!turn.image) throw Error("请先选择图片");
+  const p = await promptConstants();
+  const vision = model.isMultimodal
+    ? model
+    : settings.models.find((m) => m.id === model.visionModelId);
+  if (!vision?.isMultimodal)
+    throw Error("当前模型不支持图片，请配置关联视觉模型");
+  const blob = await assetBlob(turn.image);
+  const image: Part = {
+    type: "image_url",
+    image_url: {
+      url: `data:${blob.type || "image/png"};base64,${await blobBase64(blob)}`,
+    },
+  };
+  const raw = await complete(
+    vision,
+    [
+      {
+        role: "system",
+        content: model.isMultimodal
+          ? p.NOVELAI_TAG_SEARCH_PLANNER_SYSTEM
+          : p.IMAGE_DESCRIPTION_PROMPT,
+      },
+      {
+        role: "user",
+        content: [
+          {
+            type: "text",
+            text: model.isMultimodal
+              ? plannerInput(
+                  p.novelAiImageReversePromptUser.replaceAll(
+                    "$targetImageModel",
+                    MODELS[turn.target].name,
+                  ),
+                  references,
+                  false,
+                )
+              : "",
+          },
+          image,
+        ],
+      },
+    ],
+    signal,
+    (v) => update({ stage: "识别图片场景", ...v }),
+    false,
+    model.isMultimodal,
+  );
+  signal.throwIfAborted();
+  if (!model.isMultimodal) {
+    if (!raw.text.trim()) throw Error("图片识别未返回场景描述");
+    return raw.text.trim();
+  }
+  for (const candidate of jsonObjectCandidates(raw.text)) {
+    try {
+      return plannerDecision(JSON.parse(candidate), references, false).scene;
+    } catch {
+      /* Try the next complete JSON object. */
+    }
+  }
+  throw Error("图片识别未返回有效 sceneDescription");
+}
+
 export async function designTurn(
   conversation: DesignConversation,
   turn: DesignTurn,
   settings: Settings,
   signal: AbortSignal,
   update: (p: DesignProgress) => void,
+  confirmedSceneDescription?: string,
 ): Promise<{
   reply: DesignReply;
   raw: string;
@@ -177,9 +250,11 @@ export async function designTurn(
     extra = conversation.extraRequirement;
   if (natural && turn.target !== "V5_FULL")
     throw Error("自然语言模式仅支持 V5");
+  if (turn.reverse && !confirmedSceneDescription?.trim())
+    throw Error("请先确认场景描述");
   let image: Part | undefined,
-    visionDescription = "";
-  if (turn.image) {
+    visionDescription = confirmedSceneDescription ?? "";
+  if (turn.image && confirmedSceneDescription === undefined) {
     const blob = await assetBlob(turn.image);
     image = {
       type: "image_url",

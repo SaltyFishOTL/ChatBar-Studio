@@ -61,7 +61,7 @@ try {
     if (url.pathname === "/src/domain/design.ts")
       return route.fulfill({
         contentType: "application/javascript",
-        body: 'export async function designTurn(){return {reply:{baseCaption:"blue hair",characters:[{caption:"red eyes"}],sizePreset:"PORTRAIT"}}}',
+        body: 'export async function recognizeReverseScene(){return "synthetic scene"} export async function designTurn(){return {reply:{baseCaption:"blue hair",characters:[{caption:"red eyes"}],sizePreset:"PORTRAIT"}}}',
       });
     // Real translation worker, synthetic SQL stores. No bundled content reads.
     if (url.pathname === "/src/workers/tokenizer.ts")
@@ -470,6 +470,7 @@ try {
   passed.push("imported image metadata translated positive and negative views");
   await page.getByRole("button", { name: "反推 Prompt", exact: true }).click();
   await page.getByRole("button", { name: "反推提示词", exact: true }).click();
+  await page.getByRole("button", { name: "确认并继续", exact: true }).click();
   await page
     .locator(".candidate .prompt-annotation-text")
     .filter({ hasText: "蓝发" })

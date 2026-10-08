@@ -44,7 +44,11 @@ import {
   enhanceScales,
   upscaleCost,
 } from "../api/postprocess";
-import { designTurn, type DesignProgress } from "../domain/design";
+import {
+  designTurn,
+  recognizeReverseScene,
+  type DesignProgress,
+} from "../domain/design";
 import type {
   DesignReply,
   DesignConversation,
@@ -84,6 +88,7 @@ export function ToolsPage({
     [scale, setScale] = useState<number | "max">(1),
     [strength, setStrength] = useState(0.5),
     [noise, setNoise] = useState(0),
+    [sceneDescription, setSceneDescription] = useState<string | null>(null),
     [candidate, setCandidate] = useState<DesignReply | null>(null),
     [reverseTarget, setReverseTarget] = useState(s.draft.model),
     [stages, setStages] = useState<DesignProgress[]>([]),
@@ -148,6 +153,7 @@ export function ToolsPage({
     setSourceId(asset);
     setResult(null);
     setCandidate(null);
+    setSceneDescription(null);
     setStages([]);
     const bytes = await bytesOf(blob),
       isGif = String.fromCharCode(...bytes.subarray(0, 3)) === "GIF";
@@ -194,7 +200,7 @@ export function ToolsPage({
       if (mounted.current) setLocalBusy(false);
     }
   };
-  const reverse = async () => {
+  const reverse = async (confirmedScene?: string) => {
     if (!sourceId || reverseCtrl.current) return;
     const ctrl = new AbortController();
     reverseCtrl.current = ctrl;
@@ -223,16 +229,37 @@ export function ToolsPage({
       turns: [turn],
     };
     try {
-      const v = await designTurn(c, turn, s.settings, ctrl.signal, (p) =>
+      const update = (p: DesignProgress) =>
         setStages((old) => {
           const next = [...old],
             i = next.findIndex((x) => x.stage === p.stage);
           if (i < 0) next.push(p);
           else next[i] = p;
           return next;
-        }),
+        });
+      if (confirmedScene === undefined) {
+        const scene = await recognizeReverseScene(
+          turn,
+          s.settings,
+          c.references,
+          ctrl.signal,
+          update,
+        );
+        if (!ctrl.signal.aborted && mounted.current) {
+          setSceneDescription(scene);
+          setCandidate(null);
+        }
+        return;
+      }
+      const v = await designTurn(
+        c,
+        turn,
+        s.settings,
+        ctrl.signal,
+        update,
+        confirmedScene,
       );
-      if (!ctrl.signal.aborted) {
+      if (!ctrl.signal.aborted && mounted.current) {
         setCandidate(v.reply);
         setReverseTarget(target);
       }
@@ -497,12 +524,17 @@ export function ToolsPage({
             {tab === "reverse" && (
               <>
                 <p className="muted">
-                  使用当前设计模型、工作室目标模型和全局额外要求。完成后需明确应用。
+                  先识别并确认场景，再按工作室设置检索和反推。当前模式：
+                  {s.settings.naturalLanguage ? "自然语言 · V5" : "结构化 Tag"}
+                  。完成后需明确应用。
                 </p>
                 <div className="actions">
-                  <Button disabled={animated || reverseBusy} onClick={reverse}>
+                  <Button
+                    disabled={animated || reverseBusy}
+                    onClick={() => reverse()}
+                  >
                     <Sparkles size={15} />
-                    {candidate ? "重新反推" : "反推提示词"}
+                    {sceneDescription !== null ? "重新识别图片" : "反推提示词"}
                   </Button>
                   {reverseBusy && (
                     <Button
@@ -513,6 +545,28 @@ export function ToolsPage({
                     </Button>
                   )}
                 </div>
+                {sceneDescription !== null && !reverseBusy && (
+                  <Field label="确认场景描述">
+                    <textarea
+                      aria-label="确认场景描述"
+                      rows={8}
+                      value={sceneDescription}
+                      onChange={(e) => {
+                        setSceneDescription(e.target.value);
+                        setCandidate(null);
+                      }}
+                    />
+                    <p className="muted">
+                      修正人物、动作与环境后再继续。后续检索以此描述为准。
+                    </p>
+                    <Button
+                      disabled={!sceneDescription.trim()}
+                      onClick={() => reverse(sceneDescription)}
+                    >
+                      确认并继续
+                    </Button>
+                  </Field>
+                )}
                 {stages.map((v, i) => (
                   <details key={v.stage} open={i === stages.length - 1}>
                     <summary>{v.stage}</summary>
